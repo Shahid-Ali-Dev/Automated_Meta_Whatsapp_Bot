@@ -1,0 +1,15 @@
+/* Make the log scrollbar look nice */
+#outputLog::-webkit-scrollbar {
+    width: 8px;
+}
+#outputLog::-webkit-scrollbar-track {
+    background: #f1f1f1; 
+    border-radius: 4px;
+}
+#outputLog::-webkit-scrollbar-thumb {
+    background: #888; 
+    border-radius: 4px;
+}
+#outputLog::-webkit-scrollbar-thumb:hover {
+    background: #555; 
+}
