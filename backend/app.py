@@ -8,7 +8,7 @@ from services import get_google_sheet_contacts, send_whatsapp_template, get_groq
 load_dotenv()
 app = Flask(__name__)
 # Allow Vercel frontend to talk to this backend
-CORS(app) 
+CORS(app, resources={r"/*": {"origins": "*"}})
 
 # Security: The password required to fire the blast
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "default_secret") 
