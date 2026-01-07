@@ -1,9 +1,10 @@
 import os
+import json
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from services import get_google_sheet_contacts, send_whatsapp_template
 from dotenv import load_dotenv
-from services import get_google_sheet_contacts, send_whatsapp_template, get_groq_response, send_whatsapp_text
+from services import get_google_sheet_contacts, send_whatsapp_template, get_groq_response, send_whatsapp_text, send_gmail
 
 load_dotenv()
 app = Flask(__name__)
@@ -24,13 +25,22 @@ def send_blast():
     # 1. INPUTS
     user_password = data.get("password")
     message_body = data.get("message")
-    image_url = data.get("image_url") 
+    image_url = data.get("image_url")
+    
+    # NEW: Checkbox States (Default to False if missing)
+    send_whatsapp_flag = data.get("send_whatsapp", False)
+    send_email_flag = data.get("send_email", False)
+
     sheet_url = os.getenv("DEFAULT_SHEET_URL")
     
     if not user_password or not message_body:
         return jsonify({"error": "Missing inputs"}), 400
     if user_password != ADMIN_PASSWORD:
         return jsonify({"error": "Wrong Password"}), 403
+    
+    # Validation: User must select at least one channel
+    if not send_whatsapp_flag and not send_email_flag:
+        return jsonify({"error": "Please select at least one sending method (WhatsApp or Email)."}), 400
 
     # 2. GET CONTACTS
     contacts = get_google_sheet_contacts(sheet_url)
@@ -38,64 +48,57 @@ def send_blast():
         return jsonify({"error": "Sheet error or empty"}), 500
 
     # 3. SEND LOOP
-    success_count = 0
-    fail_count = 0
-    skipped_count = 0
+    stats = {"whatsapp_sent": 0, "whatsapp_fail": 0, "email_sent": 0, "email_fail": 0}
     
-    print(f"Starting blast to {len(contacts)} rows...")
+    print(f"Starting blast... WA: {send_whatsapp_flag}, Email: {send_email_flag}")
     
     for row in contacts:
-        # --- A. SMART PHONE EXTRACTION ---
-        # Try 'Phone' column first, if empty/missing, try 'UsdlK' (from your scraper)
-        raw_phone = str(row.get('Phone', '') or row.get('UsdlK', '')).strip()
-        
-        # CLEANING STEPS:
-        # 1. Remove spaces, dashes, and parenthesis
-        phone = raw_phone.replace(" ", "").replace("-", "").replace("(", "").replace(")", "")
-        
-        # 2. Remove leading '0' (e.g., 098100 -> 98100)
-        if phone.startswith('0'):
-            phone = phone[1:]
-            
-        # 3. Skip empty numbers or Landlines (011...) if you only want mobiles
-        # Note: 011 is Delhi landline. WhatsApp API often fails on unverified landlines.
-        if not phone or phone.startswith('011') or len(phone) < 10:
-            skipped_count += 1
-            continue
-
-        # 4. Add Country Code (91) if missing
-        if not phone.startswith('91') and not phone.startswith('+'):
-            phone = "91" + phone
-        
-        # --- B. SMART NAME CLEANING ---
-        # Get raw name
+        # --- CLEAN NAME ---
         raw_name = str(row.get('Name', 'Valued Customer')).strip()
-        
-        # Truncate long SEO names. 
-        # Example: "Dr. Gupta's Clinic - Best Dentist in Delhi" -> "Dr. Gupta's Clinic"
-        # We split by '-' or '|' and take the first part
-        clean_name = raw_name.split('-')[0].split('|')[0].strip()
-        
-        # Fallback if name becomes empty after cleaning
-        if not clean_name:
-            clean_name = "Valued Customer"
+        clean_name = raw_name.split('-')[0].split('|')[0].strip() or "Valued Customer"
 
-        # --- C. SEND MESSAGE ---
-        if phone:
-            # Pass the CLEANED name and phone
-            status, _ = send_whatsapp_template(phone, clean_name, message_body, image_url)
+        # --- OPTION 1: WHATSAPP ---
+        if send_whatsapp_flag:
+            raw_phone = str(row.get('Phone', '') or row.get('UsdlK', '')).strip()
+            phone = raw_phone.replace(" ", "").replace("-", "").replace("(", "").replace(")", "")
+            if phone.startswith('0'): phone = phone[1:]
             
-            if status in [200, 201]:
-                success_count += 1
-            else:
-                fail_count += 1
+            # Send only if valid mobile
+            if phone and not phone.startswith('011') and len(phone) >= 10:
+                if not phone.startswith('91') and not phone.startswith('+'):
+                    phone = "91" + phone
+                
+                status, _ = send_whatsapp_template(phone, clean_name, message_body, image_url)
+                if status in [200, 201]:
+                    stats["whatsapp_sent"] += 1
+                else:
+                    stats["whatsapp_fail"] += 1
+
+        # --- OPTION 2: EMAIL ---
+        if send_email_flag:
+            # Look for "Email ids" column
+            email = str(row.get('Email ids', '')).strip()
+            
+            # If multiple emails are separated by commas or spaces, take the first one
+            # Example: "test@test.com, other@test.com" -> "test@test.com"
+            if ',' in email:
+                email = email.split(',')[0].strip()
+            if ' ' in email:
+                email = email.split(' ')[0].strip()
+
+            if email and '@' in email:
+                subject = f"Update for {clean_name}" # You can change this subject if you want
+                
+                # UPDATE: Pass 'clean_name' to the function
+                if send_gmail(email, subject, message_body, clean_name):
+                    stats["email_sent"] += 1
+                else:
+                    stats["email_fail"] += 1
     
     return jsonify({
         "status": "completed",
         "total_rows": len(contacts),
-        "successful": success_count,
-        "failed": fail_count,
-        "skipped_invalid": skipped_count
+        "stats": stats
     }), 200
 
 # Webhook for Replies (We will build this out later)

@@ -52,6 +52,22 @@
                     Paste a direct link to an image (JPG/PNG). Leave empty for text-only.
                 </p>
             </div>
+            <div class="bg-blue-50 p-4 rounded-lg border border-blue-100 mb-4">
+                <label class="block text-gray-700 font-bold mb-3">
+                    <i class="fas fa-bullhorn text-blue-600"></i> Select Channels
+                </label>
+                <div class="flex gap-6">
+                    <label class="flex items-center space-x-3 cursor-pointer">
+                        <input type="checkbox" id="checkWhatsapp" class="form-checkbox h-5 w-5 text-green-600 rounded focus:ring-green-500">
+                        <span class="text-gray-700 font-medium">WhatsApp</span>
+                    </label>
+
+                    <label class="flex items-center space-x-3 cursor-pointer">
+                        <input type="checkbox" id="checkEmail" class="form-checkbox h-5 w-5 text-red-500 rounded focus:ring-red-400">
+                        <span class="text-gray-700 font-medium">Email</span>
+                    </label>
+                </div>
+            </div>
             <div>
                 <label class="block text-gray-700 font-bold mb-2">
                     <i class="fas fa-comment-alt text-green-600"></i> Message Body
@@ -171,14 +187,23 @@
         }
     };
     async function sendBlast() {
-        const imageUrl = document.getElementById('imageUrl').value; // <--- NEW
+        // GET FIELDS
+        const imageUrl = document.getElementById('imageUrl').value;
         const message = document.getElementById('messageBody').value;
         const password = document.getElementById('adminPassword').value;
-        const btn = document.getElementById('sendBtn');
-        const logDiv = document.getElementById('outputLog');
+        
+        // GET CHECKBOXES
+        const useWhatsapp = document.getElementById('checkWhatsapp').checked;
+        const useEmail = document.getElementById('checkEmail').checked;
 
         if (!message || !password) {
-            showModal("Missing Fields", "Please enter the Message and Admin Password.", true);
+            showModal("Missing Fields", "Please enter Message and Password.", true);
+            return;
+        }
+
+        // Validate at least one is checked
+        if (!useWhatsapp && !useEmail) {
+            showModal("Selection Error", "Please select at least one channel (WhatsApp or Email).", true);
             return;
         }
         btn.disabled = true;
@@ -196,7 +221,9 @@
                 body: JSON.stringify({
                     message: message,
                     password: password,
-                    image_url: imageUrl  // <--- NEW: Send it to backend
+                    image_url: imageUrl,
+                    send_whatsapp: useWhatsapp, 
+                    send_email: useEmail      
                 })
             });
 

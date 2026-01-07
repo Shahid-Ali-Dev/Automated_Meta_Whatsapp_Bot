@@ -1,5 +1,8 @@
 credentials.json
 .env
 backend/credentials.json
+backend/credentials_gmail.json
+backend/token_gmail.json
 backend/.env
 __pycache__/
+token_gmail.json
