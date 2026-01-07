@@ -187,25 +187,31 @@
         }
     };
     async function sendBlast() {
-        // GET FIELDS
+        // 1. GET HTML ELEMENTS (These were missing!)
+        const btn = document.getElementById('sendBtn');
+        const logDiv = document.getElementById('outputLog');
+        
+        // 2. GET INPUT VALUES
         const imageUrl = document.getElementById('imageUrl').value;
         const message = document.getElementById('messageBody').value;
         const password = document.getElementById('adminPassword').value;
         
-        // GET CHECKBOXES
+        // 3. GET CHECKBOXES
         const useWhatsapp = document.getElementById('checkWhatsapp').checked;
         const useEmail = document.getElementById('checkEmail').checked;
 
+        // 4. VALIDATION
         if (!message || !password) {
             showModal("Missing Fields", "Please enter Message and Password.", true);
             return;
         }
 
-        // Validate at least one is checked
         if (!useWhatsapp && !useEmail) {
             showModal("Selection Error", "Please select at least one channel (WhatsApp or Email).", true);
             return;
         }
+
+        // 5. LOCK UI (Visual Feedback)
         btn.disabled = true;
         btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Sending...`;
         btn.classList.add("opacity-50", "cursor-not-allowed");
@@ -214,6 +220,7 @@
         logDiv.innerHTML = `<p class="text-gray-500 border-b border-gray-700 pb-2 mb-2">System Log:</p>`;
         logDiv.innerHTML += `<p class="text-blue-400">> Connecting to server...</p>`;
 
+        // 6. SEND REQUEST
         try {
             const response = await fetch(`${BACKEND_URL}/api/send-blast`, {
                 method: 'POST',
@@ -233,16 +240,13 @@
                 logDiv.innerHTML += `
                     <p class="text-green-400 font-bold mt-2">> ✅ SUCCESS!</p>
                     <div class="mt-2 pl-2 border-l-2 border-green-500 text-gray-300">
-                        <p>Total: ${data.total_attempted}</p>
-                        <p>Sent: ${data.successful}</p>
-                        <p>Failed: ${data.failed}</p>
+                        <p>Total: ${data.total_rows}</p>
+                        <p>Stats: ${JSON.stringify(data.stats, null, 2)}</p>
                     </div>
                 `;
-                // Show Success Modal
-                showModal("Blast Complete!", `Successfully sent to ${data.successful} contacts.`, false);
+                showModal("Blast Complete!", `Successfully processed ${data.total_rows} contacts.`, false);
             } else {
                 logDiv.innerHTML += `<p class="text-red-500 font-bold mt-2">> ❌ ERROR: ${data.error}</p>`;
-                // Show Error Modal
                 showModal("Operation Failed", data.error, true);
             }
 
@@ -251,6 +255,7 @@
             showModal("Network Error", "Could not connect to the backend server. Is it running?", true);
             console.error(error);
         } finally {
+            // 7. UNLOCK UI
             btn.disabled = false;
             btn.innerHTML = `<span>SEND BLAST</span> <i class="fas fa-paper-plane"></i>`;
             btn.classList.remove("opacity-50", "cursor-not-allowed");
