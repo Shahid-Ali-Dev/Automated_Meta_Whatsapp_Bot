@@ -3,12 +3,20 @@ import json
 import requests
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
+from dotenv import load_dotenv
+from groq import Groq
 
+load_dotenv()
 # --- CONFIGURATION ---
+
 # We load these from Render Environment Variables for security
 META_TOKEN = os.getenv("META_ACCESS_TOKEN")
 PHONE_NUMBER_ID = os.getenv("PHONE_NUMBER_ID")
 GOOGLE_JSON_CREDS = os.getenv("GOOGLE_CREDENTIALS") # The entire JSON content of credentials.json
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+
+
+groq_client = Groq(api_key=GROQ_API_KEY)
 
 def get_google_sheet_contacts(sheet_url):
     """
@@ -82,3 +90,51 @@ def send_whatsapp_template(to_number, custom_message):
         return response.status_code, response.json()
     except Exception as e:
         return 500, str(e)
+    
+def get_groq_response(user_text):
+    """
+    Sends the user's message to Llama 3 via Groq and gets a smart reply.
+    """
+    try:
+        chat_completion = groq_client.chat.completions.create(
+            messages=[
+                {
+                    "role": "system",
+                    "content": "You are a helpful customer support assistant for a business. Keep replies concise, professional, and friendly."
+                },
+                {
+                    "role": "user",
+                    "content": user_text,
+                }
+            ],
+            # 👇 THIS IS THE ONLY LINE YOU CHANGE
+            model="llama-3.3-70b-versatile", 
+        )
+        return chat_completion.choices[0].message.content
+    except Exception as e:
+        print(f"Groq Error: {e}")
+        return "I'm having trouble thinking right now. Please try again later."
+
+def send_whatsapp_text(to_number, text_body):
+    """
+    Sends a standard text reply (Allowed only within 24h of user message).
+    """
+    url = f"https://graph.facebook.com/v21.0/{PHONE_NUMBER_ID}/messages"
+    headers = {
+        "Authorization": f"Bearer {META_TOKEN}",
+        "Content-Type": "application/json"
+    }
+    
+    payload = {
+        "messaging_product": "whatsapp",
+        "to": to_number,
+        "type": "text",
+        "text": {"body": text_body}
+    }
+    
+    try:
+        response = requests.post(url, json=payload, headers=headers)
+        return response.status_code
+    except Exception as e:
+        print(f"Send Error: {e}")
+        return 500
