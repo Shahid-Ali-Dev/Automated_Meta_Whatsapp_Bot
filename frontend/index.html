@@ -99,9 +99,7 @@
 </div>
 <script>
     // Automatically switch backend based on where the frontend is running
-    const BACKEND_URL = (window.location.hostname === "127.0.0.1" || window.location.hostname === "localhost")
-        ? "http://127.0.0.1:5000"  // Local Python Backend
-        : "https://whatsapp-bot-backend.onrender.com"; // Your LIVE Render Backend
+    const BACKEND_URL = "https://whatsapp-bot-backend.onrender.com"
 
     // --- 1. MODAL FUNCTIONS (New) ---
     
