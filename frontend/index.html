@@ -40,7 +40,18 @@
                     To change the source sheet, update the Server Environment Variables.
                 </p>
             </div>
-
+            <div>
+                <label class="block text-gray-700 font-bold mb-2">
+                    <i class="fas fa-image text-green-600"></i> Image URL (Optional)
+                </label>
+                <input type="text" id="imageUrl" 
+                    placeholder="https://your-website.com/image.jpg" 
+                    class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 transition"
+                >
+                <p class="text-xs text-gray-500 mt-1">
+                    Paste a direct link to an image (JPG/PNG). Leave empty for text-only.
+                </p>
+            </div>
             <div>
                 <label class="block text-gray-700 font-bold mb-2">
                     <i class="fas fa-comment-alt text-green-600"></i> Message Body
@@ -99,7 +110,9 @@
 </div>
 <script>
     // Automatically switch backend based on where the frontend is running
-    const BACKEND_URL = "https://whatsapp-bot-backend.onrender.com"
+    const BACKEND_URL = (window.location.hostname === "127.0.0.1" || window.location.hostname === "localhost")
+        ? "http://127.0.0.1:5000"  // Local Python Backend
+        : "https://whatsapp-bot-backend.onrender.com"; // Your LIVE Render Backend
 
     // --- 1. MODAL FUNCTIONS (New) ---
     
@@ -157,15 +170,13 @@
             statusSpan.className = "bg-red-100 text-red-800 px-2 py-0.5 rounded text-xs font-bold uppercase tracking-wider";
         }
     };
-
     async function sendBlast() {
-        // REMOVED: const sheetUrl = document.getElementById('sheetUrl').value;
+        const imageUrl = document.getElementById('imageUrl').value; // <--- NEW
         const message = document.getElementById('messageBody').value;
         const password = document.getElementById('adminPassword').value;
         const btn = document.getElementById('sendBtn');
         const logDiv = document.getElementById('outputLog');
 
-        // --- UPDATED VALIDATION (Removed Sheet URL check) ---
         if (!message || !password) {
             showModal("Missing Fields", "Please enter the Message and Admin Password.", true);
             return;
@@ -183,9 +194,9 @@
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    // We no longer send 'sheet_url' here. The backend handles it.
                     message: message,
-                    password: password
+                    password: password,
+                    image_url: imageUrl  // <--- NEW: Send it to backend
                 })
             });
 

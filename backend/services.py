@@ -54,9 +54,11 @@ def get_google_sheet_contacts(sheet_url):
         print(f"Google Sheet Error: {e}")
         return None
 
-def send_whatsapp_template(to_number, custom_message):
+def send_whatsapp_template(to_number, user_name, custom_message, image_url=None):
     """
-    Sends a 'flexible' template message where the variable is your custom text.
+    Sends a WhatsApp template with 2 variables: {{1}}=Name, {{2}}=Message.
+    - If image_url exists -> uses 'promo_with_image' (Header Image + Body).
+    - If no image -> uses 'promo_text_v2' (Text Body + Buttons).
     """
     url = f"https://graph.facebook.com/v21.0/{PHONE_NUMBER_ID}/messages"
     headers = {
@@ -64,24 +66,46 @@ def send_whatsapp_template(to_number, custom_message):
         "Content-Type": "application/json"
     }
     
-    # We use a template named 'generic_alert' (You must create this in Meta Dashboard)
-    # It should have body text like: "Update: {{1}}"
+    # 1. DEFINE THE VARIABLES (Same for both templates)
+    # Parameter 1: Name
+    # Parameter 2: The Custom Message from your website
+    body_parameters = [
+        {"type": "text", "text": user_name},
+        {"type": "text", "text": custom_message}
+    ]
+
+    # 2. CHOOSE TEMPLATE BASED ON IMAGE
+    if image_url:
+        template_name = "promo_with_image" # Ensure this template in Meta has {{1}} and {{2}}
+        components = [
+            {
+                "type": "header",
+                "parameters": [
+                    {"type": "image", "image": {"link": image_url}}
+                ]
+            },
+            {
+                "type": "body",
+                "parameters": body_parameters
+            }
+        ]
+    else:
+        template_name = "promo_text_v2" # The new text template with buttons
+        components = [
+            {
+                "type": "body",
+                "parameters": body_parameters
+            }
+        ]
+
     payload = {
         "messaging_product": "whatsapp",
         "to": to_number,
         "type": "template",
         "template": {
-            "name": "generic_alert", 
+            "name": template_name,
             "language": {"code": "en"},
-            "components": [
-                {
-                    "type": "body",
-                    "parameters": [
-                        # This injects your custom message into the template
-                        {"type": "text", "text": custom_message} 
-                    ]
-                }
-            ]
+            "components": components
         }
     }
     
@@ -91,8 +115,6 @@ def send_whatsapp_template(to_number, custom_message):
     except Exception as e:
         return 500, str(e)
     
-# ... imports remain the same ...
-
 # --- THE MASTER PROMPT ---
 # This variable holds all the knowledge the bot needs about Shout OTB.
 SYSTEM_PROMPT = """

@@ -21,48 +21,70 @@ def home():
 def send_blast():
     data = request.json
     
-    # 1. INPUT VALIDATION
+    # 1. INPUTS
     user_password = data.get("password")
     message_body = data.get("message")
-    
-    # NEW: Get Sheet URL from Environment Variable (Server Side)
-    # We no longer ask the frontend for this.
+    image_url = data.get("image_url") 
     sheet_url = os.getenv("DEFAULT_SHEET_URL")
     
     if not user_password or not message_body:
-        return jsonify({"error": "Missing password or message"}), 400
-
-    if not sheet_url:
-        return jsonify({"error": "Server Error: DEFAULT_SHEET_URL is not set in Environment Variables."}), 500
-
-    # 2. PASSWORD CHECK
+        return jsonify({"error": "Missing inputs"}), 400
     if user_password != ADMIN_PASSWORD:
-        return jsonify({"error": "Incorrect Confirmation Password. Aborting."}), 403
-    
-    # 3. GET CONTACTS
-    contacts = get_google_sheet_contacts(sheet_url)
-    if contacts is None:
-        return jsonify({"error": "Failed to read Google Sheet. Check permissions."}), 500
-    
-    if len(contacts) == 0:
-        return jsonify({"error": "Sheet is empty!"}), 400
+        return jsonify({"error": "Wrong Password"}), 403
 
-    # 4. SEND LOOP
+    # 2. GET CONTACTS
+    contacts = get_google_sheet_contacts(sheet_url)
+    if not contacts:
+        return jsonify({"error": "Sheet error or empty"}), 500
+
+    # 3. SEND LOOP
     success_count = 0
     fail_count = 0
+    skipped_count = 0
     
-    print(f"Starting blast to {len(contacts)} numbers...")
+    print(f"Starting blast to {len(contacts)} rows...")
     
     for row in contacts:
-        # Ensure phone is a string
-        phone = str(row.get('Phone', '')).strip()
+        # --- A. SMART PHONE EXTRACTION ---
+        # Try 'Phone' column first, if empty/missing, try 'UsdlK' (from your scraper)
+        raw_phone = str(row.get('Phone', '') or row.get('UsdlK', '')).strip()
         
-        # Basic cleanup: if user forgot '+', we add it (assuming India '91')
-        if not phone.startswith('+'):
-            phone = "91" + phone
+        # CLEANING STEPS:
+        # 1. Remove spaces, dashes, and parenthesis
+        phone = raw_phone.replace(" ", "").replace("-", "").replace("(", "").replace(")", "")
+        
+        # 2. Remove leading '0' (e.g., 098100 -> 98100)
+        if phone.startswith('0'):
+            phone = phone[1:]
             
+        # 3. Skip empty numbers or Landlines (011...) if you only want mobiles
+        # Note: 011 is Delhi landline. WhatsApp API often fails on unverified landlines.
+        if not phone or phone.startswith('011') or len(phone) < 10:
+            skipped_count += 1
+            continue
+
+        # 4. Add Country Code (91) if missing
+        if not phone.startswith('91') and not phone.startswith('+'):
+            phone = "91" + phone
+        
+        # --- B. SMART NAME CLEANING ---
+        # Get raw name
+        raw_name = str(row.get('Name', 'Valued Customer')).strip()
+        
+        # Truncate long SEO names. 
+        # Example: "Dr. Gupta's Clinic - Best Dentist in Delhi" -> "Dr. Gupta's Clinic"
+        # We split by '-' or '|' and take the first part
+        clean_name = raw_name.split('-')[0].split('|')[0].strip()
+        
+        # Fallback if name becomes empty after cleaning
+        if not clean_name:
+            clean_name = "Valued Customer"
+
+        # --- C. SEND MESSAGE ---
         if phone:
-            status, _ = send_whatsapp_template(phone, message_body)
+            # Pass the CLEANED name and phone
+            status, _ = send_whatsapp_template(phone, clean_name, message_body, image_url)
+            
             if status in [200, 201]:
                 success_count += 1
             else:
@@ -70,9 +92,10 @@ def send_blast():
     
     return jsonify({
         "status": "completed",
-        "total_attempted": len(contacts),
+        "total_rows": len(contacts),
         "successful": success_count,
-        "failed": fail_count
+        "failed": fail_count,
+        "skipped_invalid": skipped_count
     }), 200
 
 # Webhook for Replies (We will build this out later)
