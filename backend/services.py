@@ -89,17 +89,22 @@ def get_google_sheet_contacts(sheet_url):
                         'Phone': phone,
                         'Email ids': email,
                         'Name': name,
-                        'Source_Tab': sheet.title # Helpful for debugging
+                        'Source_Tab': sheet.title 
                     }
 
-                    # Deduplication (same as before)
-                    unique_key = phone if phone else email
-                    if unique_key and unique_key not in seen_contacts:
+                    # --- UPDATED DEDUPLICATION LOGIC ---
+                    # Old way: unique_key = phone if phone else email
+                    # This caused the issue because if phone matched, it ignored different emails.
+                    
+                    # New Way: Combine Phone AND Email to make the key.
+                    # This means (Phone1, EmailA) is different from (Phone1, EmailB).
+                    unique_key = f"{phone}_{email}"
+
+                    if unique_key not in seen_contacts:
                         seen_contacts.add(unique_key)
                         all_contacts.append(clean_row)
                         
             except Exception as e:
-                # This catches the "Duplicate Header" error and just skips that bad tab
                 print(f"⚠️ Skipped tab '{sheet.title}': {e}")
                 continue
 
