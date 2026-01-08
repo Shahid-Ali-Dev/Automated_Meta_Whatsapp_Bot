@@ -26,7 +26,7 @@ GREETING_KEYWORDS = [
 STATIC_GREETING = """Hello! 👋 Welcome to *Shout OTB*.
 
 *About Us:*
-We are a Creative Marketing & Branding company based in Bhopal, India, driven by passion and defined by innovation.
+We are a Creative Marketing & Branding Company based in Bhopal, India, driven by passion and defined by innovation.
 
 *Our Services:*
 📈 *Marketing & Branding* to build your identity
