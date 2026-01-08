@@ -1,5 +1,6 @@
 # services.py
 import os
+import datetime
 import json
 import requests
 import gspread
@@ -118,7 +119,7 @@ def send_whatsapp_template(to_number, user_name, custom_message, image_url=None)
 
 def send_brevo_email(to_email, subject, body_text, user_name="Valued Customer"):
     """
-    Sends a Professional HTML email via Brevo (Sendinblue) API.
+    Sends a Professional HTML email via Brevo using the Shout OTB branded template.
     """
     api_key = os.getenv("BREVO_API_KEY")
     sender_email = os.getenv("SENDER_EMAIL", "services@shoutotb.com")
@@ -135,30 +136,212 @@ def send_brevo_email(to_email, subject, body_text, user_name="Valued Customer"):
         "content-type": "application/json"
     }
 
-    # Format line breaks for HTML
+    # 1. Format the body text (Convert newlines to HTML breaks)
     formatted_body = body_text.replace("\n", "<br>")
+    
+    # 2. Get current year for copyright
+    current_year = datetime.datetime.now().year
 
-    # Professional HTML Template
+    # 3. THE PROFESSIONAL TEMPLATE
+    # We inject {user_name}, {formatted_body}, and {current_year} into the HTML
     html_content = f"""
-    <html>
-      <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333333;">
-        <h2 style="color: #2c3e50;">Hello {user_name},</h2>
-        
-        <div style="font-size: 16px; margin-bottom: 30px;">
-            {formatted_body}
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Shout OTB Notification</title>
+        <style>
+            /* --- RESET & BASE --- */
+            * {{ margin: 0; padding: 0; box-sizing: border-box; }}
+            body {{
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                background-color: #f5f5f5;
+                color: #333;
+                line-height: 1.5;
+                margin: 0;
+                padding: 0;
+            }}
+            .email-container {{
+                max-width: 600px;
+                margin: 0 auto;
+                background-color: #ffffff;
+                border-radius: 12px;
+                overflow: hidden;
+                box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
+            }}
+            /* --- HEADER --- */
+            .email-header {{
+                background: linear-gradient(135deg, #090909 0%, #1e1e1e 100%);
+                padding: 30px 20px;
+                text-align: center;
+                color: white;
+            }}
+            .branding-container {{ margin-bottom: 10px; }}
+            .logo-img {{
+                vertical-align: middle;
+                width: 50px;
+                height: auto;
+                margin-right: 10px;
+                border-radius: 8px;
+            }}
+            .logo-text {{
+                font-size: 26px;
+                color: #f33c52;
+                font-weight: 800;
+                letter-spacing: -0.5px;
+                vertical-align: middle;
+                display: inline-block;
+            }}
+            .email-title {{
+                font-size: 20px;
+                color: #fff;
+                margin-top: 5px;
+                font-weight: 600;
+                opacity: 0.9;
+            }}
+            /* --- CONTENT --- */
+            .email-content {{
+                padding: 30px 20px;
+                background-color: #f9f9f9;
+                color: #333;
+            }}
+            .greeting {{
+                font-size: 16px;
+                color: #f33c52;
+                margin-bottom: 15px;
+                font-weight: 600;
+            }}
+            .message-content {{
+                font-size: 15px;
+                line-height: 1.6;
+                margin-bottom: 20px;
+            }}
+            /* --- FOOTER --- */
+            .email-footer {{
+                background-color: #f9f9f9;
+                padding: 30px 20px;
+                text-align: center;
+            }}
+            .footer-grid {{
+                text-align: center;
+                padding: 10px 0;
+            }}
+            .footer-pill {{
+                display: inline-block;
+                vertical-align: top;
+                width: 140px;
+                background: #ffffff;
+                border: 1px solid #e0e0e0;
+                border-radius: 12px;
+                padding: 15px 10px;
+                margin: 5px;
+                text-align: center;
+                text-decoration: none;
+                transition: all 0.3s ease;
+                box-shadow: 0 2px 5px rgba(0,0,0,0.03);
+            }}
+            .footer-pill:hover {{
+                transform: translateY(-2px);
+                border-color: #f33c52;
+                box-shadow: 0 5px 15px rgba(243, 60, 82, 0.15);
+            }}
+            .pill-icon {{
+                font-size: 22px;
+                display: block;
+                margin-bottom: 8px;
+            }}
+            .pill-title {{
+                color: #f33c52;
+                font-size: 11px;
+                text-transform: uppercase;
+                letter-spacing: 1px;
+                font-weight: 700;
+                display: block;
+                margin-bottom: 4px;
+            }}
+            .pill-link {{
+                color: #333;
+                font-size: 13px;
+                text-decoration: none;
+                display: block;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                font-weight: 500;
+            }}
+            .no-reply-note {{
+                font-size: 12px;
+                color: #555;
+                margin-top: 25px;
+                margin-bottom: 5px;
+                font-style: italic;
+                letter-spacing: 0.3px;
+            }}
+            .copyright {{
+                font-size: 12px;
+                color: #888;
+                margin-top: 25px;
+                padding-top: 20px;
+                border-top: 1px solid #e0e0e0;
+            }}
+            /* Mobile Responsiveness */
+            @media (max-width: 480px) {{
+                .footer-pill {{
+                    width: 100%;
+                    display: block;
+                    margin: 10px 0;
+                }}
+            }}
+        </style>
+    </head>
+    <body>
+        <div class="email-container">
+            <div class="email-header">
+                <div class="branding-container">
+                    <img src="https://res.cloudinary.com/dru5oqalj/image/upload/w_80,h_80,c_pad,b_transparent,f_auto,q_auto/v1764500530/Asset_22_dbva0l.png" 
+                         alt="Logo" class="logo-img" width="50" height="50">
+                    <span class="logo-text">SHOUT OTB</span>
+                </div>
+                <h2 class="email-title">{subject}</h2>
+            </div>
+            
+            <div class="email-content">
+                <div class="greeting">Hello {user_name},</div>
+                <div class="message-content">
+                    {formatted_body}
+                </div>
+            </div>
+            
+            <div class="email-footer">
+                <div class="footer-grid">
+                    <a href="mailto:services@shoutotb.com" class="footer-pill">
+                        <span class="pill-icon">✉️</span>
+                        <span class="pill-title">Email</span>
+                        <span class="pill-link">services@shoutotb.com</span>
+                    </a>
+                    <a href="tel:+919752000546" class="footer-pill">
+                        <span class="pill-icon">📞</span>
+                        <span class="pill-title">Phone</span>
+                        <span class="pill-link">+91 97520 00546</span>
+                    </a>
+                    <a href="https://shoutotb.com" class="footer-pill">
+                        <span class="pill-icon">🌐</span>
+                        <span class="pill-title">Website</span>
+                        <span class="pill-link">shoutotb.com</span>
+                    </a>
+                </div>
+                
+                <div class="no-reply-note">
+                    This is an automated notification. Please do not reply directly to this email.
+                </div>
+                
+                <div class="copyright">
+                    © {current_year} Shout OTB. All rights reserved.
+                </div>
+            </div>
         </div>
-
-        <hr style="border: 0; border-top: 1px solid #eeeeee; margin: 30px 0;">
-        
-        <div style="color: #7f8c8d; font-size: 13px;">
-            <strong>Team Shout OTB</strong><br>
-            <em>"Driven by Passion. Defined by Innovation."</em><br>
-            <br>
-            📍 A-17 Pallavi Nagar, Bhopal, India<br>
-            📞 +91 97520 00546<br>
-            🌐 <a href="https://shoutotb.com" style="color: #FF6B35; text-decoration: none;">www.shoutotb.com</a>
-        </div>
-      </body>
+    </body>
     </html>
     """
 
@@ -171,14 +354,11 @@ def send_brevo_email(to_email, subject, body_text, user_name="Valued Customer"):
 
     try:
         response = requests.post(url, json=payload, headers=headers)
-        
-        # Brevo returns 201 for success
         if response.status_code == 201:
             return True
         else:
             print(f"📧 Brevo Error: {response.text}")
             return False
-            
     except Exception as e:
         print(f"📧 Connection Error: {e}")
         return False

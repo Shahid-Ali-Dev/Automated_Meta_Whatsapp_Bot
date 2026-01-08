@@ -1,7 +1,6 @@
 # app.py
 import os
 import json
-import requests
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from services import get_google_sheet_contacts, send_whatsapp_template
@@ -20,254 +19,85 @@ ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "default_secret")
 def home():
     return jsonify({"status": "Backend is running", "platform": "Render"}), 200
 
-import datetime # Add this import at the top
-
-def send_brevo_email(to_email, subject, body_text, user_name="Valued Customer"):
-    """
-    Sends a Professional HTML email via Brevo using the Shout OTB branded template.
-    """
-    api_key = os.getenv("BREVO_API_KEY")
-    sender_email = os.getenv("SENDER_EMAIL", "services@shoutotb.com")
+@app.route("/api/send-blast", methods=["POST"])
+def send_blast():
+    data = request.json
     
-    if not api_key:
-        print("❌ Error: BREVO_API_KEY not found.")
-        return False
-
-    url = "https://api.brevo.com/v3/smtp/email"
+    # 1. INPUTS
+    user_password = data.get("password")
+    message_body = data.get("message")
+    image_url = data.get("image_url")
     
-    headers = {
-        "accept": "application/json",
-        "api-key": api_key,
-        "content-type": "application/json"
-    }
+    # NEW: Checkbox States (Default to False if missing)
+    send_whatsapp_flag = data.get("send_whatsapp", False)
+    send_email_flag = data.get("send_email", False)
 
-    # 1. Format the body text (Convert newlines to HTML breaks)
-    formatted_body = body_text.replace("\n", "<br>")
+    sheet_url = os.getenv("DEFAULT_SHEET_URL")
     
-    # 2. Get current year for copyright
-    current_year = datetime.datetime.now().year
+    if not user_password or not message_body:
+        return jsonify({"error": "Missing inputs"}), 400
+    if user_password != ADMIN_PASSWORD:
+        return jsonify({"error": "Wrong Password"}), 403
+    
+    # Validation: User must select at least one channel
+    if not send_whatsapp_flag and not send_email_flag:
+        return jsonify({"error": "Please select at least one sending method (WhatsApp or Email)."}), 400
 
-    # 3. THE PROFESSIONAL TEMPLATE
-    # We inject {user_name}, {formatted_body}, and {current_year} into the HTML
-    html_content = f"""
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Shout OTB Notification</title>
-        <style>
-            /* --- RESET & BASE --- */
-            * {{ margin: 0; padding: 0; box-sizing: border-box; }}
-            body {{
-                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-                background-color: #f5f5f5;
-                color: #333;
-                line-height: 1.5;
-                margin: 0;
-                padding: 0;
-            }}
-            .email-container {{
-                max-width: 600px;
-                margin: 0 auto;
-                background-color: #ffffff;
-                border-radius: 12px;
-                overflow: hidden;
-                box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
-            }}
-            /* --- HEADER --- */
-            .email-header {{
-                background: linear-gradient(135deg, #090909 0%, #1e1e1e 100%);
-                padding: 30px 20px;
-                text-align: center;
-                color: white;
-            }}
-            .branding-container {{ margin-bottom: 10px; }}
-            .logo-img {{
-                vertical-align: middle;
-                width: 50px;
-                height: auto;
-                margin-right: 10px;
-                border-radius: 8px;
-            }}
-            .logo-text {{
-                font-size: 26px;
-                color: #f33c52;
-                font-weight: 800;
-                letter-spacing: -0.5px;
-                vertical-align: middle;
-                display: inline-block;
-            }}
-            .email-title {{
-                font-size: 20px;
-                color: #fff;
-                margin-top: 5px;
-                font-weight: 600;
-                opacity: 0.9;
-            }}
-            /* --- CONTENT --- */
-            .email-content {{
-                padding: 30px 20px;
-                background-color: #f9f9f9;
-                color: #333;
-            }}
-            .greeting {{
-                font-size: 16px;
-                color: #f33c52;
-                margin-bottom: 15px;
-                font-weight: 600;
-            }}
-            .message-content {{
-                font-size: 15px;
-                line-height: 1.6;
-                margin-bottom: 20px;
-            }}
-            /* --- FOOTER --- */
-            .email-footer {{
-                background-color: #f9f9f9;
-                padding: 30px 20px;
-                text-align: center;
-            }}
-            .footer-grid {{
-                text-align: center;
-                padding: 10px 0;
-            }}
-            .footer-pill {{
-                display: inline-block;
-                vertical-align: top;
-                width: 140px;
-                background: #ffffff;
-                border: 1px solid #e0e0e0;
-                border-radius: 12px;
-                padding: 15px 10px;
-                margin: 5px;
-                text-align: center;
-                text-decoration: none;
-                transition: all 0.3s ease;
-                box-shadow: 0 2px 5px rgba(0,0,0,0.03);
-            }}
-            .footer-pill:hover {{
-                transform: translateY(-2px);
-                border-color: #f33c52;
-                box-shadow: 0 5px 15px rgba(243, 60, 82, 0.15);
-            }}
-            .pill-icon {{
-                font-size: 22px;
-                display: block;
-                margin-bottom: 8px;
-            }}
-            .pill-title {{
-                color: #f33c52;
-                font-size: 11px;
-                text-transform: uppercase;
-                letter-spacing: 1px;
-                font-weight: 700;
-                display: block;
-                margin-bottom: 4px;
-            }}
-            .pill-link {{
-                color: #333;
-                font-size: 13px;
-                text-decoration: none;
-                display: block;
-                white-space: nowrap;
-                overflow: hidden;
-                text-overflow: ellipsis;
-                font-weight: 500;
-            }}
-            .no-reply-note {{
-                font-size: 12px;
-                color: #555;
-                margin-top: 25px;
-                margin-bottom: 5px;
-                font-style: italic;
-                letter-spacing: 0.3px;
-            }}
-            .copyright {{
-                font-size: 12px;
-                color: #888;
-                margin-top: 25px;
-                padding-top: 20px;
-                border-top: 1px solid #e0e0e0;
-            }}
-            /* Mobile Responsiveness */
-            @media (max-width: 480px) {{
-                .footer-pill {{
-                    width: 100%;
-                    display: block;
-                    margin: 10px 0;
-                }}
-            }}
-        </style>
-    </head>
-    <body>
-        <div class="email-container">
-            <div class="email-header">
-                <div class="branding-container">
-                    <img src="https://res.cloudinary.com/dru5oqalj/image/upload/w_80,h_80,c_pad,b_transparent,f_auto,q_auto/v1764500530/Asset_22_dbva0l.png" 
-                         alt="Logo" class="logo-img" width="50" height="50">
-                    <span class="logo-text">SHOUT OTB</span>
-                </div>
-                <h2 class="email-title">{subject}</h2>
-            </div>
+    # 2. GET CONTACTS
+    contacts = get_google_sheet_contacts(sheet_url)
+    if not contacts:
+        return jsonify({"error": "Sheet error or empty"}), 500
+
+    # 3. SEND LOOP
+    stats = {"whatsapp_sent": 0, "whatsapp_fail": 0, "email_sent": 0, "email_fail": 0}
+    
+    print(f"Starting blast... WA: {send_whatsapp_flag}, Email: {send_email_flag}")
+    
+    for row in contacts:
+        # --- CLEAN NAME ---
+        raw_name = str(row.get('Name', 'Valued Customer')).strip()
+        clean_name = raw_name.split('-')[0].split('|')[0].strip() or "Valued Customer"
+
+        # --- OPTION 1: WHATSAPP ---
+        if send_whatsapp_flag:
+            raw_phone = str(row.get('Phone', '') or row.get('UsdlK', '')).strip()
+            phone = raw_phone.replace(" ", "").replace("-", "").replace("(", "").replace(")", "")
+            if phone.startswith('0'): phone = phone[1:]
             
-            <div class="email-content">
-                <div class="greeting">Hello {user_name},</div>
-                <div class="message-content">
-                    {formatted_body}
-                </div>
-            </div>
+            # Send only if valid mobile
+            if phone and not phone.startswith('011') and len(phone) >= 10:
+                if not phone.startswith('91') and not phone.startswith('+'):
+                    phone = "91" + phone
+                
+                status, _ = send_whatsapp_template(phone, clean_name, message_body, image_url)
+                if status in [200, 201]:
+                    stats["whatsapp_sent"] += 1
+                else:
+                    stats["whatsapp_fail"] += 1
+
+        # --- OPTION 2: EMAIL ---
+        if send_email_flag:
+            email = str(row.get('Email ids', '')).strip()
             
-            <div class="email-footer">
-                <div class="footer-grid">
-                    <a href="mailto:services@shoutotb.com" class="footer-pill">
-                        <span class="pill-icon">✉️</span>
-                        <span class="pill-title">Email</span>
-                        <span class="pill-link">services@shoutotb.com</span>
-                    </a>
-                    <a href="tel:+919752000546" class="footer-pill">
-                        <span class="pill-icon">📞</span>
-                        <span class="pill-title">Phone</span>
-                        <span class="pill-link">+91 97520 00546</span>
-                    </a>
-                    <a href="https://shoutotb.com" class="footer-pill">
-                        <span class="pill-icon">🌐</span>
-                        <span class="pill-title">Website</span>
-                        <span class="pill-link">shoutotb.com</span>
-                    </a>
-                </div>
-                
-                <div class="no-reply-note">
-                    This is an automated notification. Please do not reply directly to this email.
-                </div>
-                
-                <div class="copyright">
-                    © {current_year} Shout OTB. All rights reserved.
-                </div>
-            </div>
-        </div>
-    </body>
-    </html>
-    """
+            # Handle multiple emails
+            if ',' in email: email = email.split(',')[0].strip()
+            if ' ' in email: email = email.split(' ')[0].strip()
 
-    payload = {
-        "sender": {"name": "Shout OTB Team", "email": sender_email},
-        "to": [{"email": to_email, "name": user_name}],
-        "subject": subject,
-        "htmlContent": html_content
-    }
-
-    try:
-        response = requests.post(url, json=payload, headers=headers)
-        if response.status_code == 201:
-            return True
-        else:
-            print(f"📧 Brevo Error: {response.text}")
-            return False
-    except Exception as e:
-        print(f"📧 Connection Error: {e}")
-        return False
+            if email and '@' in email:
+                subject = f"Update for {clean_name}"
+                
+                # CHANGED: Call send_brevo_email instead of send_gmail
+                if send_brevo_email(email, subject, message_body, clean_name):
+                    stats["email_sent"] += 1
+                else:
+                    stats["email_fail"] += 1
     
+    return jsonify({
+        "status": "completed",
+        "total_rows": len(contacts),
+        "stats": stats
+    }), 200
+
 # Webhook for Replies (We will build this out later)
 @app.route("/webhook", methods=["GET", "POST"])
 def webhook():
