@@ -55,12 +55,14 @@ def send_blast():
     
     for row in contacts:
         # --- CLEAN NAME ---
+        # The service layer ensures the key is always 'Name' now
         raw_name = str(row.get('Name', 'Valued Customer')).strip()
         clean_name = raw_name.split('-')[0].split('|')[0].strip() or "Valued Customer"
 
         # --- OPTION 1: WHATSAPP ---
         if send_whatsapp_flag:
-            raw_phone = str(row.get('Phone', '') or row.get('UsdlK', '')).strip()
+            # The service layer ensures the key is always 'Phone' now
+            raw_phone = str(row.get('Phone', '')).strip()
             phone = raw_phone.replace(" ", "").replace("-", "").replace("(", "").replace(")", "")
             if phone.startswith('0'): phone = phone[1:]
             
@@ -77,6 +79,7 @@ def send_blast():
 
         # --- OPTION 2: EMAIL ---
         if send_email_flag:
+            # The service layer ensures the key is always 'Email ids' now
             email = str(row.get('Email ids', '')).strip()
             
             # Handle multiple emails

@@ -22,36 +22,90 @@ groq_client = Groq(api_key=GROQ_API_KEY)
 
 def get_google_sheet_contacts(sheet_url):
     """
-    Connects to Google Sheets and returns a list of contacts.
-    Expected Columns: 'Name', 'Phone'
+    Connects to Google Sheets and returns a consolidated list of contacts 
+    from ALL tabs, handling mixed column names (Phone, Mobile, Contact, etc.).
     """
     try:
-        # 1. Try to get credentials from Environment (Render way)
+        # 1. AUTHENTICATION
         json_creds = os.getenv("GOOGLE_CREDENTIALS")
-        
-        # 2. If ENV is empty, try looking for a local file (Local Windows way)
         if not json_creds:
             if os.path.exists("credentials.json"):
-                print("⚠️ Using local credentials.json file")
                 with open("credentials.json", "r") as f:
                     json_creds = f.read()
             else:
-                print("❌ No credentials found in ENV or local file!")
+                print("❌ No credentials found!")
                 return None
 
-        # Parse the string into a dictionary
         creds_dict = json.loads(json_creds)
-        
         scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
         creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
         client = gspread.authorize(creds)
         
-        # Open the sheet by URL (easier than name)
-        sheet = client.open_by_url(sheet_url).sheet1
+        # 2. OPEN FILE
+        spreadsheet = client.open_by_url(sheet_url)
+        all_contacts = []
+        seen_contacts = set()
         
-        # Get all records as a list of dictionaries
-        # Example: [{'Name': 'Shahid', 'Phone': '919876543210'}, ...]
-        return sheet.get_all_records()
+        worksheets = spreadsheet.worksheets()
+        print(f"📊 Found {len(worksheets)} sheets. combining data...")
+
+        # 3. LOOP TABS
+        for sheet in worksheets:
+            try:
+                # Get raw records
+                records = sheet.get_all_records()
+                
+                if not records:
+                    continue
+
+                # 4. SMART COLUMN MAPPING
+                # We need to find which key corresponds to Phone, Email, Name in THIS specific tab
+                headers = list(records[0].keys())
+                
+                # Define possible aliases (lowercase for easier matching)
+                phone_aliases = ['phone', 'mobile', 'usdlk', 'contact', 'contact number', 'corporate phone']
+                email_aliases = ['email', 'email ids', 'email id', 'email address']
+                name_aliases = ['name', 'company name', 'company', 'brand', 'first name']
+
+                # Find the actual column name used in this sheet
+                phone_key = next((h for h in headers if h.lower() in phone_aliases), None)
+                email_key = next((h for h in headers if h.lower() in email_aliases), None)
+                name_key = next((h for h in headers if h.lower() in name_aliases), None)
+
+                for row in records:
+                    # Extract using the found keys
+                    phone = str(row.get(phone_key, '')).strip() if phone_key else ""
+                    email = str(row.get(email_key, '')).strip() if email_key else ""
+                    name = str(row.get(name_key, '')).strip() if name_key else "Valued Customer"
+
+                    # Special Case: If name is split (First Name / Last Name), combine them
+                    if name_key and name_key.lower() == 'first name':
+                        last_name = str(row.get('Last Name', '')).strip()
+                        if last_name:
+                            name = f"{name} {last_name}"
+
+                    # Create a standardized row object
+                    clean_row = {
+                        'Phone': phone,
+                        'Email ids': email,
+                        'Name': name,
+                        'Source_Tab': sheet.title # Helpful for debugging
+                    }
+
+                    # Deduplication (same as before)
+                    unique_key = phone if phone else email
+                    if unique_key and unique_key not in seen_contacts:
+                        seen_contacts.add(unique_key)
+                        all_contacts.append(clean_row)
+                        
+            except Exception as e:
+                # This catches the "Duplicate Header" error and just skips that bad tab
+                print(f"⚠️ Skipped tab '{sheet.title}': {e}")
+                continue
+
+        print(f"✅ Extracted {len(all_contacts)} unique contacts.")
+        return all_contacts
+
     except Exception as e:
         print(f"Google Sheet Error: {e}")
         return None
