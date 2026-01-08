@@ -422,7 +422,7 @@ def send_brevo_email(to_email, subject, body_text, user_name="Valued Customer"):
 # --- THE MASTER PROMPT ---
 # This variable holds all the knowledge the bot needs about Shout OTB.
 SYSTEM_PROMPT = """
-You are the AI Business Assistant for 'Shout OTB' (Shout Out Of The Box), a creative marketing agency based in Bhopal, India.
+You are the AI Business Assistant for 'Shout OTB' (Shout Out Of The Box), a Creative Marketing & Branding based in Bhopal, India.
 Your goal is to answer client queries professionally, showcase our services, and encourage them to book a consultation or call +91 9752000546.
 
 --- COMPANY PROFILE ---
