@@ -120,8 +120,8 @@ def send_whatsapp_template(to_number, user_name, custom_message, image_url=None)
 def send_brevo_email(to_email, subject, body_text, user_name="Valued Customer"):
     """
     Sends a Professional HTML email via Brevo.
-    - Inbox Subject: "Update for {Name}" (Passed from app.py)
-    - Template Header: "Greetings {Name}! 👋" (Internal Design)
+    - Inbox Subject: "Update for {Name}"
+    - Template Header: "Greetings {Name}! 👋"
     """
     api_key = os.getenv("BREVO_API_KEY")
     sender_email = os.getenv("SENDER_EMAIL", "services@shoutotb.com")
@@ -138,13 +138,10 @@ def send_brevo_email(to_email, subject, body_text, user_name="Valued Customer"):
         "content-type": "application/json"
     }
 
-    # 1. Format the body text
     formatted_body = body_text.replace("\n", "<br>")
-    
-    # 2. Get current year
     current_year = datetime.datetime.now().year
 
-    # 3. THE PROFESSIONAL TEMPLATE
+    # --- HTML TEMPLATE START ---
     html_content = f"""
     <!DOCTYPE html>
     <html lang="en">
@@ -171,7 +168,6 @@ def send_brevo_email(to_email, subject, body_text, user_name="Valued Customer"):
                 overflow: hidden;
                 box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
             }}
-            /* --- HEADER --- */
             .email-header {{
                 background: linear-gradient(135deg, #090909 0%, #1e1e1e 100%);
                 padding: 30px 20px;
@@ -201,7 +197,6 @@ def send_brevo_email(to_email, subject, body_text, user_name="Valued Customer"):
                 font-weight: 600;
                 opacity: 0.9;
             }}
-            /* --- CONTENT --- */
             .email-content {{
                 padding: 30px 20px;
                 background-color: #f9f9f9;
@@ -218,7 +213,6 @@ def send_brevo_email(to_email, subject, body_text, user_name="Valued Customer"):
                 line-height: 1.6;
                 margin-bottom: 20px;
             }}
-            /* --- FOOTER --- */
             .email-footer {{
                 background-color: #f9f9f9;
                 padding: 30px 20px;
@@ -303,7 +297,9 @@ def send_brevo_email(to_email, subject, body_text, user_name="Valued Customer"):
                          alt="Logo" class="logo-img" width="50" height="50">
                     <span class="logo-text">SHOUT OTB</span>
                 </div>
-                <h2 class="email-title">Greetings {user_name}</h2>
+                
+                <h2 class="email-title">Greetings {user_name}! 👋</h2>
+                
             </div>
             
             <div class="email-content">
@@ -344,11 +340,12 @@ def send_brevo_email(to_email, subject, body_text, user_name="Valued Customer"):
     </body>
     </html>
     """
+    # --- HTML TEMPLATE END ---
 
     payload = {
         "sender": {"name": "Shout OTB Team", "email": sender_email},
         "to": [{"email": to_email, "name": user_name}],
-        "subject": subject, # Only controls the Inbox Subject Line
+        "subject": subject,
         "htmlContent": html_content
     }
 
