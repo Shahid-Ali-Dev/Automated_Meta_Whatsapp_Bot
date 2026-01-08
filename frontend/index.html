@@ -36,10 +36,8 @@
                         <span class="text-xs text-green-600 font-semibold bg-green-100 px-2 py-1 rounded">Configured</span>
                     </div>
                 </div>
-                <p class="text-xs text-gray-400 mt-1 ml-1">
-                    To change the source sheet, update the Server Environment Variables.
-                </p>
             </div>
+
             <div>
                 <label class="block text-gray-700 font-bold mb-2">
                     <i class="fas fa-image text-green-600"></i> Image URL (Optional)
@@ -48,10 +46,8 @@
                     placeholder="https://your-website.com/image.jpg" 
                     class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 transition"
                 >
-                <p class="text-xs text-gray-500 mt-1">
-                    Paste a direct link to an image (JPG/PNG). Leave empty for text-only.
-                </p>
             </div>
+
             <div class="bg-blue-50 p-4 rounded-lg border border-blue-100 mb-4">
                 <label class="block text-gray-700 font-bold mb-3">
                     <i class="fas fa-bullhorn text-blue-600"></i> Select Channels
@@ -68,6 +64,7 @@
                     </label>
                 </div>
             </div>
+
             <div>
                 <label class="block text-gray-700 font-bold mb-2">
                     <i class="fas fa-comment-alt text-green-600"></i> Message Body
@@ -91,7 +88,7 @@
                         placeholder="Enter Admin Password" 
                         class="flex-1 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400"
                     >
-                    <button id="sendBtn" onclick="sendBlast()" 
+                    <button id="sendBtn" onclick="askConfirmation()" 
                         class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-8 rounded-lg shadow-lg transform transition hover:scale-105 flex items-center justify-center gap-2">
                         <span>SEND BLAST</span>
                         <i class="fas fa-paper-plane"></i>
@@ -105,45 +102,62 @@
 
         </div>
     </div>
-<div id="customModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 backdrop-blur-sm transition-opacity duration-300">
-    <div class="bg-white rounded-2xl shadow-2xl p-6 max-w-sm w-full transform scale-95 transition-all duration-300 border border-gray-100" id="modalBox">
-        <div class="text-center">
-            
-            <div id="modalIconBg" class="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-red-100 mb-4 animate-bounce">
-                <i id="modalIcon" class="fas fa-exclamation-triangle text-red-600 text-2xl"></i>
-            </div>
-            
-            <h3 class="text-xl font-bold text-gray-900 mb-2" id="modalTitle">Attention Needed</h3>
-            <p class="text-gray-500 text-sm mb-6" id="modalMessage">
-                Please fill in all fields before sending.
-            </p>
 
-            <button onclick="closeModal()" class="w-full inline-flex justify-center rounded-xl shadow-lg px-4 py-3 bg-gray-900 text-white font-bold hover:bg-gray-800 focus:outline-none transition hover:-translate-y-1">
-                Got it
-            </button>
+    <div id="customModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 backdrop-blur-sm">
+        <div class="bg-white rounded-2xl shadow-2xl p-6 max-w-sm w-full transform scale-95 border border-gray-100">
+            <div class="text-center">
+                <div id="modalIconBg" class="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-red-100 mb-4">
+                    <i id="modalIcon" class="fas fa-exclamation-triangle text-red-600 text-2xl"></i>
+                </div>
+                <h3 class="text-xl font-bold text-gray-900 mb-2" id="modalTitle">Title</h3>
+                <p class="text-gray-500 text-sm mb-6" id="modalMessage">Message</p>
+                <button onclick="closeModal()" class="w-full inline-flex justify-center rounded-xl shadow-lg px-4 py-3 bg-gray-900 text-white font-bold hover:bg-gray-800 transition">
+                    Got it
+                </button>
+            </div>
         </div>
     </div>
-</div>
-<script>
-    // Automatically switch backend based on where the frontend is running
-    const BACKEND_URL = (window.location.hostname === "127.0.0.1" || window.location.hostname === "localhost")
-        ? "http://127.0.0.1:5000"  // Local Python Backend
-        : "https://automated-meta-whatsapp-bot.onrender.com"; // Your LIVE Render Backend
 
-    // --- 1. MODAL FUNCTIONS (New) ---
-    
+    <div id="confirmModal" class="fixed inset-0 bg-black bg-opacity-60 hidden items-center justify-center z-50 backdrop-blur-sm">
+        <div class="bg-white rounded-2xl shadow-2xl p-6 max-w-sm w-full transform border-t-4 border-yellow-400">
+            <div class="text-center">
+                <div class="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-yellow-100 mb-4 animate-pulse">
+                    <i class="fas fa-question text-yellow-600 text-2xl"></i>
+                </div>
+                <h3 class="text-xl font-bold text-gray-900 mb-2">Confirm Blast?</h3>
+                <p class="text-gray-500 text-sm mb-6">
+                    You are about to send messages via: <br>
+                    <span id="confirmChannels" class="font-bold text-gray-800"></span>
+                    <br><br>
+                    This action cannot be undone.
+                </p>
+                
+                <div class="flex gap-3">
+                    <button onclick="closeConfirmModal()" class="flex-1 py-3 rounded-xl border border-gray-300 text-gray-700 font-bold hover:bg-gray-50 transition">
+                        Cancel
+                    </button>
+                    <button onclick="executeBlast()" class="flex-1 py-3 rounded-xl bg-green-600 text-white font-bold hover:bg-green-700 shadow-lg transition transform hover:-translate-y-1">
+                        Yes, Send 🚀
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<script>
+    const BACKEND_URL = (window.location.hostname === "127.0.0.1" || window.location.hostname === "localhost")
+        ? "http://127.0.0.1:5000"
+        : "https://automated-meta-whatsapp-bot.onrender.com";
+
+    // --- MODAL UTILS ---
     function showModal(title, message, isError = true) {
         const modal = document.getElementById('customModal');
         const icon = document.getElementById('modalIcon');
         const iconBg = document.getElementById('modalIconBg');
-        const titleEl = document.getElementById('modalTitle');
-        const msgEl = document.getElementById('modalMessage');
+        
+        document.getElementById('modalTitle').innerText = title;
+        document.getElementById('modalMessage').innerText = message;
 
-        // Set Text
-        titleEl.innerText = title;
-        msgEl.innerText = message;
-
-        // Styling based on Type (Error vs Success)
         if (isError) {
             icon.className = "fas fa-exclamation-triangle text-red-600 text-2xl";
             iconBg.className = "mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-red-100 mb-4";
@@ -151,76 +165,88 @@
             icon.className = "fas fa-check text-green-600 text-2xl";
             iconBg.className = "mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100 mb-4";
         }
-
-        // Show Modal (Flex makes it visible)
         modal.classList.remove('hidden');
         modal.classList.add('flex');
     }
 
     function closeModal() {
-        const modal = document.getElementById('customModal');
-        modal.classList.add('hidden');
-        modal.classList.remove('flex');
+        document.getElementById('customModal').classList.add('hidden');
+        document.getElementById('customModal').classList.remove('flex');
     }
 
-    // Close modal if user clicks outside the box
-    window.onclick = function(event) {
-        const modal = document.getElementById('customModal');
-        if (event.target == modal) {
-            closeModal();
-        }
-    }
-
-    // --- 2. EXISTING LOGIC (Updated) ---
-
-    window.onload = async () => {
-        const statusSpan = document.getElementById('system-status');
-        try {
-            const response = await fetch(`${BACKEND_URL}/`);
-            if (response.ok) {
-                statusSpan.innerText = "Online";
-                statusSpan.className = "bg-green-100 text-green-800 px-2 py-0.5 rounded text-xs font-bold uppercase tracking-wider";
-            }
-        } catch (error) {
-            statusSpan.innerText = "Offline";
-            statusSpan.className = "bg-red-100 text-red-800 px-2 py-0.5 rounded text-xs font-bold uppercase tracking-wider";
-        }
-    };
-    async function sendBlast() {
-        // 1. GET HTML ELEMENTS (These were missing!)
-        const btn = document.getElementById('sendBtn');
-        const logDiv = document.getElementById('outputLog');
-        
-        // 2. GET INPUT VALUES
-        const imageUrl = document.getElementById('imageUrl').value;
+    // --- CONFIRMATION UTILS ---
+    function askConfirmation() {
         const message = document.getElementById('messageBody').value;
         const password = document.getElementById('adminPassword').value;
-        
-        // 3. GET CHECKBOXES
         const useWhatsapp = document.getElementById('checkWhatsapp').checked;
         const useEmail = document.getElementById('checkEmail').checked;
 
-        // 4. VALIDATION
+        // 1. Validate First
         if (!message || !password) {
             showModal("Missing Fields", "Please enter Message and Password.", true);
             return;
         }
-
         if (!useWhatsapp && !useEmail) {
-            showModal("Selection Error", "Please select at least one channel (WhatsApp or Email).", true);
+            showModal("Selection Error", "Please select at least one channel.", true);
             return;
         }
 
-        // 5. LOCK UI (Visual Feedback)
+        // 2. Set Text based on selection
+        let channelText = "";
+        if (useWhatsapp && useEmail) channelText = "✅ WhatsApp and ✅ Email";
+        else if (useWhatsapp) channelText = "✅ WhatsApp Only";
+        else if (useEmail) channelText = "✅ Email Only";
+
+        document.getElementById('confirmChannels').innerText = channelText;
+
+        // 3. Show Confirmation Modal
+        const modal = document.getElementById('confirmModal');
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+    }
+
+    function closeConfirmModal() {
+        const modal = document.getElementById('confirmModal');
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+    }
+
+    // --- CLEANUP FUNCTION (Wipes Form) ---
+    function resetForm() {
+        document.getElementById('messageBody').value = "";
+        document.getElementById('adminPassword').value = "";
+        document.getElementById('imageUrl').value = "";
+        document.getElementById('checkWhatsapp').checked = false;
+        document.getElementById('checkEmail').checked = false;
+        
+        // Optional: Hide log after 5 seconds to look clean
+        setTimeout(() => {
+            document.getElementById('outputLog').classList.add('hidden');
+        }, 5000);
+    }
+
+    // --- MAIN LOGIC ---
+    async function executeBlast() {
+        closeConfirmModal(); // Hide the question
+
+        const btn = document.getElementById('sendBtn');
+        const logDiv = document.getElementById('outputLog');
+        
+        // Lock UI
         btn.disabled = true;
         btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Sending...`;
         btn.classList.add("opacity-50", "cursor-not-allowed");
         
         logDiv.classList.remove("hidden");
-        logDiv.innerHTML = `<p class="text-gray-500 border-b border-gray-700 pb-2 mb-2">System Log:</p>`;
-        logDiv.innerHTML += `<p class="text-blue-400">> Connecting to server...</p>`;
+        logDiv.innerHTML = `<p class="text-blue-400">> Connecting to server...</p>`;
 
-        // 6. SEND REQUEST
+        // Grab values again (safe since we just validated them)
+        const imageUrl = document.getElementById('imageUrl').value;
+        const message = document.getElementById('messageBody').value;
+        const password = document.getElementById('adminPassword').value;
+        const useWhatsapp = document.getElementById('checkWhatsapp').checked;
+        const useEmail = document.getElementById('checkEmail').checked;
+
         try {
             const response = await fetch(`${BACKEND_URL}/api/send-blast`, {
                 method: 'POST',
@@ -239,28 +265,42 @@
             if (response.ok) {
                 logDiv.innerHTML += `
                     <p class="text-green-400 font-bold mt-2">> ✅ SUCCESS!</p>
-                    <div class="mt-2 pl-2 border-l-2 border-green-500 text-gray-300">
-                        <p>Total: ${data.total_rows}</p>
-                        <p>Stats: ${JSON.stringify(data.stats, null, 2)}</p>
-                    </div>
+                    <p class="text-gray-400 text-xs">Clearing form...</p>
                 `;
-                showModal("Blast Complete!", `Successfully processed ${data.total_rows} contacts.`, false);
+                showModal("Blast Complete!", `Successfully processed ${data.total_rows} contacts. Form has been reset.`, false);
+                
+                // --- RESET FORM HERE ---
+                resetForm();
+
             } else {
                 logDiv.innerHTML += `<p class="text-red-500 font-bold mt-2">> ❌ ERROR: ${data.error}</p>`;
                 showModal("Operation Failed", data.error, true);
             }
 
         } catch (error) {
-            logDiv.innerHTML += `<p class="text-red-500 font-bold mt-2">> ❌ CONNECTION FAILED</p>`;
-            showModal("Network Error", "Could not connect to the backend server. Is it running?", true);
-            console.error(error);
+            logDiv.innerHTML += `<p class="text-red-500 font-bold mt-2">> ❌ NETWORK ERROR</p>`;
+            showModal("Network Error", "Could not connect to backend.", true);
         } finally {
-            // 7. UNLOCK UI
             btn.disabled = false;
             btn.innerHTML = `<span>SEND BLAST</span> <i class="fas fa-paper-plane"></i>`;
             btn.classList.remove("opacity-50", "cursor-not-allowed");
         }
     }
+
+    // Status Check on Load
+    window.onload = async () => {
+        const statusSpan = document.getElementById('system-status');
+        try {
+            const response = await fetch(`${BACKEND_URL}/`);
+            if (response.ok) {
+                statusSpan.innerText = "Online";
+                statusSpan.className = "bg-green-100 text-green-800 px-2 py-0.5 rounded text-xs font-bold uppercase tracking-wider";
+            }
+        } catch (error) {
+            statusSpan.innerText = "Offline";
+            statusSpan.className = "bg-red-100 text-red-800 px-2 py-0.5 rounded text-xs font-bold uppercase tracking-wider";
+        }
+    };
 </script>
 </body>
 </html>
