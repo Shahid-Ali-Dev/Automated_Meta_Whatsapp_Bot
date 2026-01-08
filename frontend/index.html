@@ -213,16 +213,15 @@
 
     // --- CLEANUP FUNCTION (Wipes Form) ---
     function resetForm() {
+        // Clear inputs so you don't accidentally send again
         document.getElementById('messageBody').value = "";
         document.getElementById('adminPassword').value = "";
         document.getElementById('imageUrl').value = "";
         document.getElementById('checkWhatsapp').checked = false;
         document.getElementById('checkEmail').checked = false;
         
-        // Optional: Hide log after 5 seconds to look clean
-        setTimeout(() => {
-            document.getElementById('outputLog').classList.add('hidden');
-        }, 5000);
+        // WE DELETED THE TIMEOUT CODE HERE.
+        // The logs will now stay visible forever until you refresh the page.
     }
 
     // --- MAIN LOGIC ---
