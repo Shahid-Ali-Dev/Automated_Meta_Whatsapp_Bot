@@ -262,13 +262,26 @@
             const data = await response.json();
 
             if (response.ok) {
-                logDiv.innerHTML += `
-                    <p class="text-green-400 font-bold mt-2">> ✅ SUCCESS!</p>
-                    <p class="text-gray-400 text-xs">Clearing form...</p>
+                // 1. Build a clean stats summary string
+                const stats = data.stats;
+                const statsHtml = `
+                    <div class="mt-2 pl-2 border-l-2 border-green-500 text-gray-300 text-xs">
+                        <p><strong>Total Processed:</strong> ${data.total_rows}</p>
+                        <hr class="border-gray-600 my-1">
+                        <p>🟢 WA Sent: ${stats.whatsapp_sent} <span class="text-red-400">(Failed: ${stats.whatsapp_fail})</span></p>
+                        <p>🔵 Email Sent: ${stats.email_sent} <span class="text-red-400">(Failed: ${stats.email_fail})</span></p>
+                    </div>
                 `;
-                showModal("Blast Complete!", `Successfully processed ${data.total_rows} contacts. Form has been reset.`, false);
+
+                // 2. Append this to the log
+                logDiv.innerHTML += `
+                    <p class="text-green-400 font-bold mt-2">> ✅ BLAST COMPLETE!</p>
+                    ${statsHtml}
+                `;
                 
-                // --- RESET FORM HERE ---
+                showModal("Blast Complete!", `Successfully processed ${data.total_rows} contacts. See logs for details.`, false);
+                
+                // 3. Reset form (but keep logs visible)
                 resetForm();
 
             } else {
