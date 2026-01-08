@@ -15,13 +15,15 @@ CORS(app, resources={r"/*": {"origins": "*"}})
 # Security: The password required to fire the blast
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "default_secret") 
 
-# --- CONFIGURATION FOR STATIC REPLIES ---
+# --- STATIC RESPONSE CONFIGURATION ---
 
+# 1. GREETINGS
 GREETING_KEYWORDS = [
-    "hi", "hello", "hii", "hiii", "helloo", "hey", "hola", "hlo", "heyy", "namaste","namaskar","hi?","hello?","hii?","hiii?","helloo?","hey?","hola?","hlo?","heyy?","namaste?","namaskar?"
+    "hi", "hello", "hii", "hiii", "helloo", "hey", "hola", "hlo", "heyy", "namaste", "namaskar", 
+    "hi?", "hello?", "hey?", "start", "good morning", "good evening"
 ]
 
-STATIC_GREETING_MESSAGE = """Hello! 👋 Welcome to *Shout OTB*.
+STATIC_GREETING = """Hello! 👋 Welcome to *Shout OTB*.
 
 *About Us:*
 We are a creative marketing agency based in Bhopal, India, driven by passion and defined by innovation.
@@ -39,6 +41,85 @@ We are a creative marketing agency based in Bhopal, India, driven by passion and
 📲 Email: services@shoutotb.com
 
 Let's discuss how we can help you achieve your business goals. What brings you here today?"""
+
+# 2. PRICING & COST
+PRICING_KEYWORDS = [
+    "price", "pricing", "cost", "costs", "charge", "charges", "rate", "rates", "package", "packages",
+    "price?", "pricing?", "cost?", "how much", "how much?"
+]
+
+STATIC_PRICING = """💰 *Pricing & Packages*
+
+At *Shout OTB*, we don't believe in "one-size-fits-all." Your business is unique, and your marketing plan should be too.
+
+*Our pricing depends on:*
+🔹 The scope of work (e.g., Logo vs. Full Rebranding)
+🔹 Duration of the campaign
+🔹 Platform selection (Meta, Google, Amazon, etc.)
+
+*Want a Custom Quote?*
+Let's have a quick chat to understand your needs.
+
+📞 *Call for Estimate:* +91 9752000546
+📧 *Email:* services@shoutotb.com"""
+
+# 3. LOCATION & ADDRESS
+LOCATION_KEYWORDS = [
+    "location", "address", "where", "where?", "office", "bhopal", "city", "located", "location?", "address?"
+]
+
+STATIC_LOCATION = """📍 *Visit Our Office*
+
+We are located in the heart of Bhopal!
+
+*Shout OTB HQ*
+🏢 A-17 Pallavi Nagar,
+Bawadiya Kalan,
+Bhopal - 462026, M.P., India.
+
+*Office Hours:*
+Monday - Saturday: 10:00 AM - 7:00 PM
+
+🌐 *Google Maps:* https://maps.app.goo.gl/YourMapLinkHere""" 
+# (Note: Replace the map link above if you have a real GMB link)
+
+# 4. SERVICES (Standalone)
+SERVICES_KEYWORDS = [
+    "service", "services", "work", "what do you do", "offer", "offering", "services?", "what do you do?"
+]
+
+STATIC_SERVICES = """🚀 *Our Premium Services*
+
+Here is how we help brands scale:
+
+📈 *Marketing & Branding*
+Logo Design, Brand Identity, & Strategy.
+
+🎯 *Performance Marketing*
+Meta Ads, Google Ads, & ROAS Optimization.
+
+🤖 *AI & Automation*
+Custom Chatbots, Workflow Automation & CRM Setup.
+
+🛍️ *Retail & E-commerce*
+End-to-end management for Amazon, Flipkart & Shopify.
+
+🎨 *3D Animation & Modeling*
+High-end visuals to make your product stand out.
+
+*Which one interests you?* 👇"""
+
+# 5. THANKS / CLOSING
+THANKS_KEYWORDS = [
+    "thanks", "thank you", "thx", "tysm", "bye", "goodbye", "ok thanks", "okay thanks", "cool", "great"
+]
+
+STATIC_THANKS = """You're welcome! 🤝
+
+We look forward to working with you. If you have any more questions, just ask!
+
+*Team Shout OTB*
+📞 +91 9752000546"""
 
 @app.route("/")
 def home():
@@ -165,11 +246,33 @@ def webhook():
                         # Convert to lowercase and remove spaces (e.g., " Hi " -> "hi")
                         clean_text = user_text.lower().strip()
 
-                        # --- 2. CHECK FOR GREETINGS (Save API Cost) ---
-                        if clean_text in GREETING_KEYWORDS:
-                            print(f"👋 Greeting detected from {phone_no}. Sending static reply.")
-                            send_whatsapp_text(phone_no, STATIC_GREETING_MESSAGE)
+                        # --- 2. CHECK STATIC RESPONSES (Waterfall Logic) ---
                         
+                        # A. Greeting
+                        if clean_text in GREETING_KEYWORDS:
+                            print(f"👋 Greeting detected from {phone_no}")
+                            send_whatsapp_text(phone_no, STATIC_GREETING)
+
+                        # B. Pricing
+                        elif any(word in clean_text for word in PRICING_KEYWORDS):
+                            print(f"💰 Pricing query from {phone_no}")
+                            send_whatsapp_text(phone_no, STATIC_PRICING)
+
+                        # C. Location
+                        elif any(word in clean_text for word in LOCATION_KEYWORDS):
+                            print(f"📍 Location query from {phone_no}")
+                            send_whatsapp_text(phone_no, STATIC_LOCATION)
+                            
+                        # D. Services
+                        elif any(word in clean_text for word in SERVICES_KEYWORDS):
+                            print(f"🚀 Services query from {phone_no}")
+                            send_whatsapp_text(phone_no, STATIC_SERVICES)
+
+                        # E. Thanks/Bye
+                        elif any(word in clean_text for word in THANKS_KEYWORDS):
+                            print(f"🤝 Closing chat with {phone_no}")
+                            send_whatsapp_text(phone_no, STATIC_THANKS)
+
                         # --- 3. OTHERWISE, ASK GROQ (AI) ---
                         else:
                             print(f"🤖 AI Request from {phone_no}: {user_text}")
