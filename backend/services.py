@@ -418,7 +418,7 @@ def send_brevo_email(to_email, subject, body_text, user_name="Valued Customer"):
     except Exception as e:
         print(f"📧 Connection Error: {e}")
         return False
-        
+
 # --- THE MASTER PROMPT ---
 # This variable holds all the knowledge the bot needs about Shout OTB.
 SYSTEM_PROMPT = """

@@ -15,6 +15,31 @@ CORS(app, resources={r"/*": {"origins": "*"}})
 # Security: The password required to fire the blast
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "default_secret") 
 
+# --- CONFIGURATION FOR STATIC REPLIES ---
+
+GREETING_KEYWORDS = [
+    "hi", "hello", "hii", "hiii", "helloo", "hey", "hola", "hlo", "heyy", "namaste"
+]
+
+STATIC_GREETING_MESSAGE = """Hello! 👋 Welcome to *Shout OTB*.
+
+*About Us:*
+We are a creative marketing agency based in Bhopal, India, driven by passion and defined by innovation.
+
+*Our Services:*
+📈 *Marketing & Branding* to build your identity
+🚀 *Performance Marketing* to boost your sales
+🤖 *AI & Automation* to save you time
+🛍️ *Retail & E-commerce* to manage your online stores
+🎨 *3D Animation & Modeling* to make your product stand out
+
+*Ready to start?*
+📞 Call us: *+91 9752000546*
+🌐 Visit: https://shoutotb.com
+📲 Email: services@shoutotb.com
+
+Let's discuss how we can help you achieve your business goals. What brings you here today?"""
+
 @app.route("/")
 def home():
     return jsonify({"status": "Backend is running", "platform": "Render"}), 200
@@ -126,8 +151,8 @@ def webhook():
             # Parse the deeply nested JSON from Meta
             if data.get("entry") and data["entry"][0].get("changes"):
                 change = data["entry"][0]["changes"][0]["value"]
-                
-                # Check if it's a message (and not a status update like 'read' or 'delivered')
+
+                # Check if it's a message
                 if "messages" in change:
                     message_data = change["messages"][0]
                     phone_no = message_data["from"]
@@ -136,11 +161,20 @@ def webhook():
                     if message_data["type"] == "text":
                         user_text = message_data["text"]["body"]
                         
-                        # 1. Ask Groq for a reply
-                        ai_reply = get_groq_response(user_text)
+                        # --- 1. CLEAN THE INPUT ---
+                        # Convert to lowercase and remove spaces (e.g., " Hi " -> "hi")
+                        clean_text = user_text.lower().strip()
+
+                        # --- 2. CHECK FOR GREETINGS (Save API Cost) ---
+                        if clean_text in GREETING_KEYWORDS:
+                            print(f"👋 Greeting detected from {phone_no}. Sending static reply.")
+                            send_whatsapp_text(phone_no, STATIC_GREETING_MESSAGE)
                         
-                        # 2. Send the reply back to WhatsApp
-                        send_whatsapp_text(phone_no, ai_reply)
+                        # --- 3. OTHERWISE, ASK GROQ (AI) ---
+                        else:
+                            print(f"🤖 AI Request from {phone_no}: {user_text}")
+                            ai_reply = get_groq_response(user_text)
+                            send_whatsapp_text(phone_no, ai_reply)
 
         except Exception as e:
             print(f"Webhook Error: {e}")
