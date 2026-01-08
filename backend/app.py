@@ -18,7 +18,7 @@ ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "default_secret")
 # --- CONFIGURATION FOR STATIC REPLIES ---
 
 GREETING_KEYWORDS = [
-    "hi", "hello", "hii", "hiii", "helloo", "hey", "hola", "hlo", "heyy", "namaste"
+    "hi", "hello", "hii", "hiii", "helloo", "hey", "hola", "hlo", "heyy", "namaste","namaskar","hi?","hello?","hii?","hiii?","helloo?","hey?","hola?","hlo?","heyy?","namaste?","namaskar?"
 ]
 
 STATIC_GREETING_MESSAGE = """Hello! 👋 Welcome to *Shout OTB*.
