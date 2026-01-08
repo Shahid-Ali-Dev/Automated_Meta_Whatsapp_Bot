@@ -119,7 +119,9 @@ def send_whatsapp_template(to_number, user_name, custom_message, image_url=None)
 
 def send_brevo_email(to_email, subject, body_text, user_name="Valued Customer"):
     """
-    Sends a Professional HTML email via Brevo using the Shout OTB branded template.
+    Sends a Professional HTML email via Brevo.
+    - Inbox Subject: "Update for {Name}" (Passed from app.py)
+    - Template Header: "Greetings {Name}" (Internal Design)
     """
     api_key = os.getenv("BREVO_API_KEY")
     sender_email = os.getenv("SENDER_EMAIL", "services@shoutotb.com")
@@ -136,14 +138,13 @@ def send_brevo_email(to_email, subject, body_text, user_name="Valued Customer"):
         "content-type": "application/json"
     }
 
-    # 1. Format the body text (Convert newlines to HTML breaks)
+    # 1. Format the body text
     formatted_body = body_text.replace("\n", "<br>")
     
-    # 2. Get current year for copyright
+    # 2. Get current year
     current_year = datetime.datetime.now().year
 
     # 3. THE PROFESSIONAL TEMPLATE
-    # We inject {user_name}, {formatted_body}, and {current_year} into the HTML
     html_content = f"""
     <!DOCTYPE html>
     <html lang="en">
@@ -285,7 +286,6 @@ def send_brevo_email(to_email, subject, body_text, user_name="Valued Customer"):
                 padding-top: 20px;
                 border-top: 1px solid #e0e0e0;
             }}
-            /* Mobile Responsiveness */
             @media (max-width: 480px) {{
                 .footer-pill {{
                     width: 100%;
@@ -303,7 +303,7 @@ def send_brevo_email(to_email, subject, body_text, user_name="Valued Customer"):
                          alt="Logo" class="logo-img" width="50" height="50">
                     <span class="logo-text">SHOUT OTB</span>
                 </div>
-                <h2 class="email-title">{subject}</h2>
+                <h2 class="email-title">Greetings {user_name}</h2>
             </div>
             
             <div class="email-content">
@@ -348,7 +348,7 @@ def send_brevo_email(to_email, subject, body_text, user_name="Valued Customer"):
     payload = {
         "sender": {"name": "Shout OTB Team", "email": sender_email},
         "to": [{"email": to_email, "name": user_name}],
-        "subject": subject,
+        "subject": subject, # Only controls the Inbox Subject Line
         "htmlContent": html_content
     }
 
