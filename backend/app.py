@@ -26,7 +26,7 @@ GREETING_KEYWORDS = [
 STATIC_GREETING = """Hello! 👋 Welcome to *Shout OTB*.
 
 *About Us:*
-We are a creative marketing agency based in Bhopal, India, driven by passion and defined by innovation.
+We are a Creative Marketing & Branding company based in Bhopal, India, driven by passion and defined by innovation.
 
 *Our Services:*
 📈 *Marketing & Branding* to build your identity
@@ -81,6 +81,7 @@ Bhopal - 462026, M.P., India.
 Monday - Saturday: 10:00 AM - 7:00 PM
 
 🌐 *Google Maps:* https://maps.app.goo.gl/YourMapLinkHere""" 
+
 # (Note: Replace the map link above if you have a real GMB link)
 
 # 4. SERVICES (Standalone)
