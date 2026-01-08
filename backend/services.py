@@ -6,10 +6,6 @@ import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 from dotenv import load_dotenv
 from groq import Groq
-import base64
-from email.mime.text import MIMEText
-from google.oauth2.credentials import Credentials
-from googleapiclient.discovery import build
 
 load_dotenv()
 # --- CONFIGURATION ---
@@ -120,65 +116,71 @@ def send_whatsapp_template(to_number, user_name, custom_message, image_url=None)
     except Exception as e:
         return 500, str(e)
 
-def send_gmail(to_email, subject, body_text, user_name="Valued Customer"):
+def send_brevo_email(to_email, subject, body_text, user_name="Valued Customer"):
     """
-    Sends a Professional HTML email via Gmail API.
+    Sends a Professional HTML email via Brevo (Sendinblue) API.
     """
-    try:
-        # 1. LOAD CREDENTIALS
-        token_json = os.getenv("GMAIL_TOKEN_JSON")
-        if not token_json:
-            print("❌ Error: GMAIL_TOKEN_JSON not found in env.")
-            return False
+    api_key = os.getenv("BREVO_API_KEY")
+    sender_email = os.getenv("SENDER_EMAIL", "services@shoutotb.com")
+    
+    if not api_key:
+        print("❌ Error: BREVO_API_KEY not found.")
+        return False
 
-        creds = Credentials.from_authorized_user_info(json.loads(token_json))
-        service = build('gmail', 'v1', credentials=creds)
+    url = "https://api.brevo.com/v3/smtp/email"
+    
+    headers = {
+        "accept": "application/json",
+        "api-key": api_key,
+        "content-type": "application/json"
+    }
 
-        # 2. PREPARE CONTENT
-        # Convert newlines in the message to HTML line breaks so it looks right
-        formatted_body = body_text.replace("\n", "<br>")
+    # Format line breaks for HTML
+    formatted_body = body_text.replace("\n", "<br>")
 
-        # 3. HTML TEMPLATE (The Professional Design)
-        html_content = f"""
-        <html>
-          <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333333;">
-            
-            <h2 style="color: #2c3e50;">Hello {user_name},</h2>
-            
-            <div style="font-size: 16px; margin-bottom: 30px;">
-                {formatted_body}
-            </div>
-
-            <hr style="border: 0; border-top: 1px solid #eeeeee; margin: 30px 0;">
-            
-            <div style="color: #7f8c8d; font-size: 13px;">
-                <strong>Team Shout OTB</strong><br>
-                <em>"Driven by Passion. Defined by Innovation."</em><br>
-                <br>
-                📍 A-17 Pallavi Nagar, Bhopal, India<br>
-                📞 +91 97520 00546<br>
-                🌐 <a href="https://shoutotb.com" style="color: #FF6B35; text-decoration: none;">www.shoutotb.com</a>
-            </div>
-
-          </body>
-        </html>
-        """
-
-        # 4. CREATE MESSAGE
-        # We use 'html' instead of 'plain'
-        message = MIMEText(html_content, 'html') 
-        message['to'] = to_email
-        message['subject'] = subject
+    # Professional HTML Template
+    html_content = f"""
+    <html>
+      <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333333;">
+        <h2 style="color: #2c3e50;">Hello {user_name},</h2>
         
-        raw_message = base64.urlsafe_b64encode(message.as_bytes()).decode()
-        create_message = {'raw': raw_message}
+        <div style="font-size: 16px; margin-bottom: 30px;">
+            {formatted_body}
+        </div>
 
-        # 5. SEND
-        service.users().messages().send(userId="me", body=create_message).execute()
-        return True
+        <hr style="border: 0; border-top: 1px solid #eeeeee; margin: 30px 0;">
+        
+        <div style="color: #7f8c8d; font-size: 13px;">
+            <strong>Team Shout OTB</strong><br>
+            <em>"Driven by Passion. Defined by Innovation."</em><br>
+            <br>
+            📍 A-17 Pallavi Nagar, Bhopal, India<br>
+            📞 +91 97520 00546<br>
+            🌐 <a href="https://shoutotb.com" style="color: #FF6B35; text-decoration: none;">www.shoutotb.com</a>
+        </div>
+      </body>
+    </html>
+    """
 
+    payload = {
+        "sender": {"name": "Shout OTB Team", "email": sender_email},
+        "to": [{"email": to_email, "name": user_name}],
+        "subject": subject,
+        "htmlContent": html_content
+    }
+
+    try:
+        response = requests.post(url, json=payload, headers=headers)
+        
+        # Brevo returns 201 for success
+        if response.status_code == 201:
+            return True
+        else:
+            print(f"📧 Brevo Error: {response.text}")
+            return False
+            
     except Exception as e:
-        print(f"📧 Email Error: {e}")
+        print(f"📧 Connection Error: {e}")
         return False
         
 # --- THE MASTER PROMPT ---

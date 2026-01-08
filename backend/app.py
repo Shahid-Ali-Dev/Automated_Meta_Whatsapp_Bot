@@ -5,7 +5,7 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 from services import get_google_sheet_contacts, send_whatsapp_template
 from dotenv import load_dotenv
-from services import get_google_sheet_contacts, send_whatsapp_template, get_groq_response, send_whatsapp_text, send_gmail
+from services import get_google_sheet_contacts, send_whatsapp_template, get_groq_response, send_whatsapp_text, send_brevo_email
 
 load_dotenv()
 app = Flask(__name__)
@@ -77,21 +77,17 @@ def send_blast():
 
         # --- OPTION 2: EMAIL ---
         if send_email_flag:
-            # Look for "Email ids" column
             email = str(row.get('Email ids', '')).strip()
             
-            # If multiple emails are separated by commas or spaces, take the first one
-            # Example: "test@test.com, other@test.com" -> "test@test.com"
-            if ',' in email:
-                email = email.split(',')[0].strip()
-            if ' ' in email:
-                email = email.split(' ')[0].strip()
+            # Handle multiple emails
+            if ',' in email: email = email.split(',')[0].strip()
+            if ' ' in email: email = email.split(' ')[0].strip()
 
             if email and '@' in email:
-                subject = f"Update for {clean_name}" # You can change this subject if you want
+                subject = f"Update for {clean_name}"
                 
-                # UPDATE: Pass 'clean_name' to the function
-                if send_gmail(email, subject, message_body, clean_name):
+                # CHANGED: Call send_brevo_email instead of send_gmail
+                if send_brevo_email(email, subject, message_body, clean_name):
                     stats["email_sent"] += 1
                 else:
                     stats["email_fail"] += 1
