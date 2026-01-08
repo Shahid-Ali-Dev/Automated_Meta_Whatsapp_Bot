@@ -121,7 +121,7 @@ def send_brevo_email(to_email, subject, body_text, user_name="Valued Customer"):
     """
     Sends a Professional HTML email via Brevo.
     - Inbox Subject: "Update for {Name}" (Passed from app.py)
-    - Template Header: "Greetings {Name}" (Internal Design)
+    - Template Header: "Greetings {Name}! 👋" (Internal Design)
     """
     api_key = os.getenv("BREVO_API_KEY")
     sender_email = os.getenv("SENDER_EMAIL", "services@shoutotb.com")
