@@ -118,13 +118,35 @@ def get_google_sheet_contacts(sheet_url, target_tabs=[]):
     except Exception as e:
         print(f"Google Sheet Error: {e}")
         return None
-
+def validate_image_url(url):
+    """
+    Checks if an image URL is publicly accessible.
+    """
+    if not url: return True # Empty is fine (text only)
+    try:
+        # We try to just 'head' the URL to check status without downloading content
+        response = requests.head(url, timeout=5)
+        if response.status_code == 200:
+            return True
+        # Some servers don't support HEAD, so try GET
+        response = requests.get(url, timeout=5)
+        if response.status_code == 200:
+            return True
+        return False
+    except:
+        return False
+    
 def send_whatsapp_template(to_number, user_name, custom_message, image_url=None):
     """
     Sends a WhatsApp template with 2 variables: {{1}}=Name, {{2}}=Message.
     - If image_url exists -> uses 'promo_with_image' (Header Image + Body).
     - If no image -> uses 'promo_text_v2' (Text Body + Buttons).
     """
+    
+    if image_url and not validate_image_url(image_url):
+        print(f"❌ Image Error: URL is not accessible ({image_url})")
+        return 400, {"error": "Invalid or Private Image URL"}
+    
     url = f"https://graph.facebook.com/v21.0/{PHONE_NUMBER_ID}/messages"
     headers = {
         "Authorization": f"Bearer {META_TOKEN}",
