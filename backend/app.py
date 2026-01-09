@@ -256,59 +256,64 @@ def webhook():
     if request.method == "POST":
         data = request.get_json()
         
-        # Don't print the huge JSON every time, it clutters logs.
-        # print("Incoming Webhook:", data) 
-
         try:
             if data.get("entry") and data["entry"][0].get("changes"):
                 change = data["entry"][0]["changes"][0]["value"]
                 
-                # --- CASE A: IT IS A STATUS UPDATE (Sent/Delivered/Read/Failed) ---
+                # --- STATUS UPDATES (Sent/Delivered/Failed) ---
                 if "statuses" in change:
-                    status_data = change["statuses"][0]
-                    phone = status_data.get("recipient_id")
-                    status = status_data.get("status")
-                    
-                    if status == "failed":
-                        errors = status_data.get("errors", [])
-                        for error in errors:
-                            code = error.get("code")
-                            msg = error.get("message")
-                            
-                            if code == 131049:
-                                print(f"🚫 BLOCKED: Meta Spam Filter triggered for {phone}. (Reason: Ecosystem Engagement)")
-                                print("   💡 TIP: Send to known numbers first and reply to them to build trust.")
-                            elif code == 131053:
-                                print(f"❌ UPLOAD FAIL: Image URL is private/broken for {phone}.")
-                            else:
-                                print(f"⚠️ FAILED: {phone} - Error {code}: {msg}")
-                                
-                    # Optional: Print success only for debugging
-                    # elif status == "sent":
-                    #    print(f"✅ Sent to {phone}")
+                    # ... (Keep your existing status error logging logic here) ...
+                    pass 
 
-                # --- CASE B: IT IS A MESSAGE (User replied) ---
+                # --- INCOMING MESSAGES ---
                 elif "messages" in change:
                     message_data = change["messages"][0]
                     phone_no = message_data["from"]
-                    
-                    if message_data["type"] == "text":
+                    message_type = message_data["type"]
+                    user_text = ""
+
+                    # ------------------------------------------------------
+                    # 🔍 FIX: Handle BOTH "text" AND "button" types
+                    # ------------------------------------------------------
+                    if message_type == "text":
                         user_text = message_data["text"]["body"]
-                        # ... (Rest of your chatbot logic: clean_text, static responses, AI) ...
+                    
+                    elif message_type == "button":
+                        # This handles Quick Reply button clicks
+                        user_text = message_data["button"]["text"]
+                        print(f"🔘 Button Click Detected: {user_text}")
+
+                    elif message_type == "interactive":
+                        # This handles List Menu clicks (future proofing)
+                        if message_data["interactive"]["type"] == "button_reply":
+                            user_text = message_data["interactive"]["button_reply"]["title"]
+                    # ------------------------------------------------------
+
+                    # Only proceed if we found some text
+                    if user_text:
+                        # --- 1. CLEAN INPUT ---
                         clean_text = user_text.lower().strip()
-                        
-                        # (Keep your existing if/elif/else logic here for GREETING, PRICING, etc.)
+
+                        # --- 2. CHECK STATIC RESPONSES ---
                         if clean_text in GREETING_KEYWORDS:
                              send_whatsapp_text(phone_no, STATIC_GREETING)
+                        
                         elif any(word in clean_text for word in PRICING_KEYWORDS):
                              send_whatsapp_text(phone_no, STATIC_PRICING)
+                        
                         elif any(word in clean_text for word in LOCATION_KEYWORDS):
                              send_whatsapp_text(phone_no, STATIC_LOCATION)
+                        
+                        # This will now catch "View Services" button clicks!
                         elif any(word in clean_text for word in SERVICES_KEYWORDS):
+                             print(f"🚀 Services query from {phone_no}")
                              send_whatsapp_text(phone_no, STATIC_SERVICES)
+                        
                         elif any(word in clean_text for word in THANKS_KEYWORDS):
                              send_whatsapp_text(phone_no, STATIC_THANKS)
+                        
                         else:
+                             # AI Fallback
                              ai_reply = get_groq_response(user_text)
                              send_whatsapp_text(phone_no, ai_reply)
 
@@ -316,6 +321,6 @@ def webhook():
             print(f"Webhook Error: {e}")
 
         return jsonify({"status": "received"}), 200
-
+    
 if __name__ == "__main__":
     app.run(debug=True)
