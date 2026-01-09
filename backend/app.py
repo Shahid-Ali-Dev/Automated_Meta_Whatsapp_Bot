@@ -243,53 +243,62 @@ def webhook():
     # 2. INCOMING MESSAGES
     if request.method == "POST":
         data = request.get_json()
-        print("Incoming Webhook:", data)
+        
+        # Don't print the huge JSON every time, it clutters logs.
+        # print("Incoming Webhook:", data) 
 
         try:
             if data.get("entry") and data["entry"][0].get("changes"):
                 change = data["entry"][0]["changes"][0]["value"]
-                if "messages" in change:
+                
+                # --- CASE A: IT IS A STATUS UPDATE (Sent/Delivered/Read/Failed) ---
+                if "statuses" in change:
+                    status_data = change["statuses"][0]
+                    phone = status_data.get("recipient_id")
+                    status = status_data.get("status")
+                    
+                    if status == "failed":
+                        errors = status_data.get("errors", [])
+                        for error in errors:
+                            code = error.get("code")
+                            msg = error.get("message")
+                            
+                            if code == 131049:
+                                print(f"🚫 BLOCKED: Meta Spam Filter triggered for {phone}. (Reason: Ecosystem Engagement)")
+                                print("   💡 TIP: Send to known numbers first and reply to them to build trust.")
+                            elif code == 131053:
+                                print(f"❌ UPLOAD FAIL: Image URL is private/broken for {phone}.")
+                            else:
+                                print(f"⚠️ FAILED: {phone} - Error {code}: {msg}")
+                                
+                    # Optional: Print success only for debugging
+                    # elif status == "sent":
+                    #    print(f"✅ Sent to {phone}")
+
+                # --- CASE B: IT IS A MESSAGE (User replied) ---
+                elif "messages" in change:
                     message_data = change["messages"][0]
                     phone_no = message_data["from"]
                     
                     if message_data["type"] == "text":
                         user_text = message_data["text"]["body"]
-                        
-                        # --- 1. CLEAN INPUT ---
+                        # ... (Rest of your chatbot logic: clean_text, static responses, AI) ...
                         clean_text = user_text.lower().strip()
-
-                        # --- 2. CHECK STATIC RESPONSES ---
                         
-                        # A. Greeting
+                        # (Keep your existing if/elif/else logic here for GREETING, PRICING, etc.)
                         if clean_text in GREETING_KEYWORDS:
-                            print(f"👋 Greeting detected from {phone_no}")
-                            send_whatsapp_text(phone_no, STATIC_GREETING)
-
-                        # B. Pricing
+                             send_whatsapp_text(phone_no, STATIC_GREETING)
                         elif any(word in clean_text for word in PRICING_KEYWORDS):
-                            print(f"💰 Pricing query from {phone_no}")
-                            send_whatsapp_text(phone_no, STATIC_PRICING)
-
-                        # C. Location
+                             send_whatsapp_text(phone_no, STATIC_PRICING)
                         elif any(word in clean_text for word in LOCATION_KEYWORDS):
-                            print(f"📍 Location query from {phone_no}")
-                            send_whatsapp_text(phone_no, STATIC_LOCATION)
-                            
-                        # D. Services
+                             send_whatsapp_text(phone_no, STATIC_LOCATION)
                         elif any(word in clean_text for word in SERVICES_KEYWORDS):
-                            print(f"🚀 Services query from {phone_no}")
-                            send_whatsapp_text(phone_no, STATIC_SERVICES)
-
-                        # E. Thanks
+                             send_whatsapp_text(phone_no, STATIC_SERVICES)
                         elif any(word in clean_text for word in THANKS_KEYWORDS):
-                            print(f"🤝 Closing chat with {phone_no}")
-                            send_whatsapp_text(phone_no, STATIC_THANKS)
-
-                        # --- 3. AI FALLBACK ---
+                             send_whatsapp_text(phone_no, STATIC_THANKS)
                         else:
-                            print(f"🤖 AI Request from {phone_no}")
-                            ai_reply = get_groq_response(user_text)
-                            send_whatsapp_text(phone_no, ai_reply)
+                             ai_reply = get_groq_response(user_text)
+                             send_whatsapp_text(phone_no, ai_reply)
 
         except Exception as e:
             print(f"Webhook Error: {e}")
