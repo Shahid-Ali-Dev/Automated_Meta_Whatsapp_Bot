@@ -378,23 +378,21 @@
     }
 
     function toggleSheetSelection(checkbox) {
-        const allCheckboxes = document.querySelectorAll('.sheet-checkbox');
-        const selectAllCheckbox = document.querySelector('.sheet-checkbox[value="ALL"]');
+        // Get references to "Select All" and the other individual checkboxes
+        const allCheckbox = document.querySelector('.sheet-checkbox[value="ALL"]');
+        const otherCheckboxes = document.querySelectorAll('.sheet-checkbox:not([value="ALL"])');
 
-        // CASE 1: User clicked "Select All"
         if (checkbox.value === "ALL") {
+            // CASE A: User clicked "Select All"
             if (checkbox.checked) {
-                // If "Select All" is turned ON, uncheck everything else
-                allCheckboxes.forEach(cb => {
-                    if (cb.value !== "ALL") cb.checked = false;
-                });
+                // If "Select All" is ON, turn OFF everything else
+                otherCheckboxes.forEach(cb => cb.checked = false);
             }
-        } 
-        // CASE 2: User clicked a Specific Sheet
-        else {
+        } else {
+            // CASE B: User clicked a specific sheet (e.g., "Real Estate")
             if (checkbox.checked) {
-                // If a specific sheet is turned ON, uncheck "Select All"
-                if (selectAllCheckbox) selectAllCheckbox.checked = false;
+                // If selecting a specific sheet, turn OFF "Select All"
+                if (allCheckbox) allCheckbox.checked = false;
             }
         }
     }
