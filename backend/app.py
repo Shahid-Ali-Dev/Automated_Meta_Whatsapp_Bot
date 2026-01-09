@@ -154,7 +154,7 @@ def send_blast():
     message_body = data.get("message")
     image_url = data.get("image_url")
     
-    # NEW: Checkbox States (Default to False if missing)
+    # Checkbox States
     send_whatsapp_flag = data.get("send_whatsapp", False)
     send_email_flag = data.get("send_email", False)
     selected_tabs = data.get("selected_tabs", ["ALL"])
@@ -166,11 +166,10 @@ def send_blast():
     if user_password != ADMIN_PASSWORD:
         return jsonify({"error": "Wrong Password"}), 403
     
-    # Validation: User must select at least one channel
     if not send_whatsapp_flag and not send_email_flag:
-        return jsonify({"error": "Please select at least one sending method (WhatsApp or Email)."}), 400
+        return jsonify({"error": "Please select at least one sending method."}), 400
 
-    # 2. GET CONTACTS
+    # 2. GET CONTACTS (This returns duplicates if they have different emails, which is GOOD)
     contacts = get_google_sheet_contacts(sheet_url, selected_tabs)
     if not contacts:
         return jsonify({"error": "Sheet error or empty"}), 500
@@ -178,35 +177,44 @@ def send_blast():
     # 3. SEND LOOP
     stats = {"whatsapp_sent": 0, "whatsapp_fail": 0, "email_sent": 0, "email_fail": 0}
     
+    # --- NEW: DUPLICATE PROTECTION SETS ---
+    sent_phones = set()
+    sent_emails = set()
+    
     print(f"Starting blast... WA: {send_whatsapp_flag}, Email: {send_email_flag}")
     
     for row in contacts:
         # --- CLEAN NAME ---
-        # The service layer ensures the key is always 'Name' now
         raw_name = str(row.get('Name', 'Valued Customer')).strip()
         clean_name = raw_name.split('-')[0].split('|')[0].strip() or "Valued Customer"
 
         # --- OPTION 1: WHATSAPP ---
         if send_whatsapp_flag:
-            # The service layer ensures the key is always 'Phone' now
             raw_phone = str(row.get('Phone', '')).strip()
+            # Clean the phone number
             phone = raw_phone.replace(" ", "").replace("-", "").replace("(", "").replace(")", "")
             if phone.startswith('0'): phone = phone[1:]
             
-            # Send only if valid mobile
+            # Validate format
             if phone and not phone.startswith('011') and len(phone) >= 10:
                 if not phone.startswith('91') and not phone.startswith('+'):
                     phone = "91" + phone
-                
-                status, _ = send_whatsapp_template(phone, clean_name, message_body, image_url)
-                if status in [200, 201]:
-                    stats["whatsapp_sent"] += 1
+
+                # --- NEW LOGIC: Check if we already messaged this number ---
+                if phone in sent_phones:
+                    # We skip sending, BUT we don't mark it as a fail. It's just a duplicate.
+                    print(f"⏭️ WA Skip: {phone} (Already sent)")
                 else:
-                    stats["whatsapp_fail"] += 1
+                    # It's a new number! Send it.
+                    status, _ = send_whatsapp_template(phone, clean_name, message_body, image_url)
+                    if status in [200, 201]:
+                        stats["whatsapp_sent"] += 1
+                        sent_phones.add(phone) # Mark as sent so we don't send again
+                    else:
+                        stats["whatsapp_fail"] += 1
 
         # --- OPTION 2: EMAIL ---
         if send_email_flag:
-            # The service layer ensures the key is always 'Email ids' now
             email = str(row.get('Email ids', '')).strip()
             
             # Handle multiple emails
@@ -214,13 +222,17 @@ def send_blast():
             if ' ' in email: email = email.split(' ')[0].strip()
 
             if email and '@' in email:
-                subject = f"Update for {clean_name}"
-                
-                # CHANGED: Call send_brevo_email instead of send_gmail
-                if send_brevo_email(email, subject, message_body, clean_name):
-                    stats["email_sent"] += 1
+                # --- NEW LOGIC: Check if we already emailed this address ---
+                if email in sent_emails:
+                    print(f"⏭️ Email Skip: {email} (Already sent)")
                 else:
-                    stats["email_fail"] += 1
+                    # It's a new email! Send it.
+                    subject = f"Update for {clean_name}"
+                    if send_brevo_email(email, subject, message_body, clean_name):
+                        stats["email_sent"] += 1
+                        sent_emails.add(email) # Mark as sent
+                    else:
+                        stats["email_fail"] += 1
     
     return jsonify({
         "status": "completed",
