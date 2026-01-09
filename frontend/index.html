@@ -361,9 +361,10 @@
 
                 // Add Individual Sheets
                 data.sheets.forEach(sheetName => {
+                    // FIX IS HERE: Added onchange="toggleSheetSelection(this)"
                     const html = `
                         <label class="flex items-center space-x-2 text-sm cursor-pointer hover:bg-gray-50 p-1 rounded">
-                            <input type="checkbox" value="${sheetName}" class="sheet-checkbox form-checkbox h-4 w-4 text-green-600 rounded">
+                            <input type="checkbox" value="${sheetName}" onchange="toggleSheetSelection(this)" class="sheet-checkbox form-checkbox h-4 w-4 text-green-600 rounded">
                             <span class="truncate" title="${sheetName}">${sheetName}</span>
                         </label>
                     `;
@@ -376,22 +377,19 @@
             container.innerHTML = `<p class="text-xs text-red-400 col-span-3">Failed to load sheets.</p>`;
         }
     }
-
+    // 3. LOGIC: Mutually Exclusive Selection
     function toggleSheetSelection(checkbox) {
-        // Get references to "Select All" and the other individual checkboxes
         const allCheckbox = document.querySelector('.sheet-checkbox[value="ALL"]');
         const otherCheckboxes = document.querySelectorAll('.sheet-checkbox:not([value="ALL"])');
 
         if (checkbox.value === "ALL") {
-            // CASE A: User clicked "Select All"
+            // If "Select All" is checked, uncheck everyone else
             if (checkbox.checked) {
-                // If "Select All" is ON, turn OFF everything else
                 otherCheckboxes.forEach(cb => cb.checked = false);
             }
         } else {
-            // CASE B: User clicked a specific sheet (e.g., "Real Estate")
+            // If a specific sheet is checked, uncheck "Select All"
             if (checkbox.checked) {
-                // If selecting a specific sheet, turn OFF "Select All"
                 if (allCheckbox) allCheckbox.checked = false;
             }
         }
