@@ -191,27 +191,29 @@ def send_blast():
         # --- OPTION 1: WHATSAPP ---
         if send_whatsapp_flag:
             raw_phone = str(row.get('Phone', '')).strip()
-            # Clean the phone number
             phone = raw_phone.replace(" ", "").replace("-", "").replace("(", "").replace(")", "")
             if phone.startswith('0'): phone = phone[1:]
             
-            # Validate format
             if phone and not phone.startswith('011') and len(phone) >= 10:
                 if not phone.startswith('91') and not phone.startswith('+'):
                     phone = "91" + phone
 
-                # --- NEW LOGIC: Check if we already messaged this number ---
+                # CHECK DUPLICATES
                 if phone in sent_phones:
-                    # We skip sending, BUT we don't mark it as a fail. It's just a duplicate.
-                    print(f"⏭️ WA Skip: {phone} (Already sent)")
+                    print(f"⏭️ WA Skip: {phone} (Already sent successfully)")
                 else:
-                    # It's a new number! Send it.
-                    status, _ = send_whatsapp_template(phone, clean_name, message_body, image_url)
-                    if status in [200, 201]:
+                    # Capture the full response
+                    status_code, response_data = send_whatsapp_template(phone, clean_name, message_body, image_url)
+                    
+                    if status_code in [200, 201]:
                         stats["whatsapp_sent"] += 1
-                        sent_phones.add(phone) # Mark as sent so we don't send again
+                        sent_phones.add(phone) # Mark as success
+                        print(f"✅ WA Sent: {phone}")
                     else:
                         stats["whatsapp_fail"] += 1
+                        # --- NEW: PRINT THE ACTUAL ERROR ---
+                        error_msg = response_data.get('error', {}).get('message', 'Unknown Error')
+                        print(f"❌ WA Failed for {phone}: {error_msg}")
 
         # --- OPTION 2: EMAIL ---
         if send_email_flag:
