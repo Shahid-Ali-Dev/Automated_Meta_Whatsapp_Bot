@@ -321,6 +321,8 @@
     // Status Check on Load
     window.onload = async () => {
         const statusSpan = document.getElementById('system-status');
+        
+        // 1. Check Backend Status
         try {
             const response = await fetch(`${BACKEND_URL}/`);
             if (response.ok) {
@@ -331,8 +333,10 @@
             statusSpan.innerText = "Offline";
             statusSpan.className = "bg-red-100 text-red-800 px-2 py-0.5 rounded text-xs font-bold uppercase tracking-wider";
         }
-        checkStatus(); 
-        loadSheetNames(); // <--- Add this
+        
+        // 2. Load Sheets
+        // REMOVE THE LINE: checkStatus(); <--- CAUSING THE ERROR
+        loadSheetNames(); 
     };
     // 2. FUNCTION TO FETCH SHEET NAMES
     async function loadSheetNames() {

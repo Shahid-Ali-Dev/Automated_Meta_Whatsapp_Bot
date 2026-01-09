@@ -220,43 +220,34 @@ def send_blast():
 # Webhook for Replies (We will build this out later)
 @app.route("/webhook", methods=["GET", "POST"])
 def webhook():
-    # 1. VERIFICATION (Meta checks if you exist)
+    # 1. VERIFICATION
     if request.method == "GET":
         mode = request.args.get("hub.mode")
         token = request.args.get("hub.verify_token")
         challenge = request.args.get("hub.challenge")
-        
-        # Check if the token matches your Render Environment Variable
         if mode == "subscribe" and token == os.getenv("VERIFY_TOKEN"):
             return challenge, 200
         return "Forbidden", 403
 
-    # 2. INCOMING MESSAGES (User sent something)
+    # 2. INCOMING MESSAGES
     if request.method == "POST":
         data = request.get_json()
-        
-        # Print for debugging in Render logs
         print("Incoming Webhook:", data)
 
         try:
-            # Parse the deeply nested JSON from Meta
             if data.get("entry") and data["entry"][0].get("changes"):
                 change = data["entry"][0]["changes"][0]["value"]
-
-                # Check if it's a message
                 if "messages" in change:
                     message_data = change["messages"][0]
                     phone_no = message_data["from"]
                     
-                    # We only handle text messages for now
                     if message_data["type"] == "text":
                         user_text = message_data["text"]["body"]
                         
-                        # --- 1. CLEAN THE INPUT ---
-                        # Convert to lowercase and remove spaces (e.g., " Hi " -> "hi")
+                        # --- 1. CLEAN INPUT ---
                         clean_text = user_text.lower().strip()
 
-                        # --- 2. CHECK STATIC RESPONSES (Waterfall Logic) ---
+                        # --- 2. CHECK STATIC RESPONSES ---
                         
                         # A. Greeting
                         if clean_text in GREETING_KEYWORDS:
@@ -278,21 +269,20 @@ def webhook():
                             print(f"🚀 Services query from {phone_no}")
                             send_whatsapp_text(phone_no, STATIC_SERVICES)
 
-                        # E. Thanks/Bye
+                        # E. Thanks
                         elif any(word in clean_text for word in THANKS_KEYWORDS):
                             print(f"🤝 Closing chat with {phone_no}")
                             send_whatsapp_text(phone_no, STATIC_THANKS)
 
-                        # --- 3. OTHERWISE, ASK GROQ (AI) ---
+                        # --- 3. AI FALLBACK ---
                         else:
-                            print(f"🤖 AI Request from {phone_no}: {user_text}")
+                            print(f"🤖 AI Request from {phone_no}")
                             ai_reply = get_groq_response(user_text)
                             send_whatsapp_text(phone_no, ai_reply)
 
         except Exception as e:
             print(f"Webhook Error: {e}")
 
-        # Always return 200 OK to Meta, otherwise they will stop sending messages
         return jsonify({"status": "received"}), 200
 
 if __name__ == "__main__":
