@@ -376,12 +376,26 @@
             container.innerHTML = `<p class="text-xs text-red-400 col-span-3">Failed to load sheets.</p>`;
         }
     }
+
     function toggleSheetSelection(checkbox) {
         const allCheckboxes = document.querySelectorAll('.sheet-checkbox');
-        if (checkbox.value === "ALL" && checkbox.checked) {
-            allCheckboxes.forEach(cb => {
-                if (cb.value !== "ALL") cb.checked = false;
-            });
+        const selectAllCheckbox = document.querySelector('.sheet-checkbox[value="ALL"]');
+
+        // CASE 1: User clicked "Select All"
+        if (checkbox.value === "ALL") {
+            if (checkbox.checked) {
+                // If "Select All" is turned ON, uncheck everything else
+                allCheckboxes.forEach(cb => {
+                    if (cb.value !== "ALL") cb.checked = false;
+                });
+            }
+        } 
+        // CASE 2: User clicked a Specific Sheet
+        else {
+            if (checkbox.checked) {
+                // If a specific sheet is turned ON, uncheck "Select All"
+                if (selectAllCheckbox) selectAllCheckbox.checked = false;
+            }
         }
     }
 </script>
