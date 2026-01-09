@@ -195,7 +195,6 @@
         const useWhatsapp = document.getElementById('checkWhatsapp').checked;
         const useEmail = document.getElementById('checkEmail').checked;
 
-        // 1. Validate First
         if (!message || !password) {
             showModal("Missing Fields", "Please enter Message and Password.", true);
             return;
@@ -205,7 +204,6 @@
             return;
         }
 
-        // 2. Set Text based on selection
         let channelText = "";
         if (useWhatsapp && useEmail) channelText = "✅ WhatsApp and ✅ Email";
         else if (useWhatsapp) channelText = "✅ WhatsApp Only";
@@ -213,7 +211,6 @@
 
         document.getElementById('confirmChannels').innerText = channelText;
 
-        // 3. Show Confirmation Modal
         const modal = document.getElementById('confirmModal');
         modal.classList.remove('hidden');
         modal.classList.add('flex');
@@ -225,120 +222,18 @@
         modal.classList.remove('flex');
     }
 
-    // --- CLEANUP FUNCTION (Wipes Form) ---
+    // --- CLEANUP FUNCTION (Wipes Form ONLY) ---
     function resetForm() {
-        // Clear inputs so you don't accidentally send again
         document.getElementById('messageBody').value = "";
         document.getElementById('adminPassword').value = "";
         document.getElementById('imageUrl').value = "";
         document.getElementById('checkWhatsapp').checked = false;
         document.getElementById('checkEmail').checked = false;
         
-        // WE DELETED THE TIMEOUT CODE HERE.
-        // The logs will now stay visible forever until you refresh the page.
+        // IMPORTANT: We do NOT hide the outputLog here, so you can see the stats!
     }
 
-    // --- MAIN LOGIC ---
-    async function executeBlast() {
-        closeConfirmModal(); 
-
-        const btn = document.getElementById('sendBtn');
-        const logDiv = document.getElementById('outputLog');
-        
-        // Lock UI
-        btn.disabled = true;
-        btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Sending...`;
-        
-        // GRAB SELECTED TABS
-        const allCheckboxes = document.querySelectorAll('.sheet-checkbox:checked');
-        let selectedTabs = [];
-        allCheckboxes.forEach(cb => selectedTabs.push(cb.value));
-
-        // Default to ALL if nothing selected
-        if (selectedTabs.length === 0) selectedTabs = ["ALL"];
-
-        // Grab other values
-        const imageUrl = document.getElementById('imageUrl').value;
-        const message = document.getElementById('messageBody').value;
-        const password = document.getElementById('adminPassword').value;
-        const useWhatsapp = document.getElementById('checkWhatsapp').checked;
-        const useEmail = document.getElementById('checkEmail').checked;
-
-        try {
-            const response = await fetch(`${BACKEND_URL}/api/send-blast`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    message: message,
-                    password: password,
-                    image_url: imageUrl,
-                    send_whatsapp: useWhatsapp, 
-                    send_email: useEmail,
-                    selected_tabs: selectedTabs // <--- SEND THIS
-                })
-            });
-
-            const data = await response.json();
-
-            if (response.ok) {
-                // 1. Build a clean stats summary string
-                const stats = data.stats;
-                const statsHtml = `
-                    <div class="mt-2 pl-2 border-l-2 border-green-500 text-gray-300 text-xs">
-                        <p><strong>Total Processed:</strong> ${data.total_rows}</p>
-                        <hr class="border-gray-600 my-1">
-                        <p>🟢 WA Sent: ${stats.whatsapp_sent} <span class="text-red-400">(Failed: ${stats.whatsapp_fail})</span></p>
-                        <p>🔵 Email Sent: ${stats.email_sent} <span class="text-red-400">(Failed: ${stats.email_fail})</span></p>
-                    </div>
-                `;
-
-                // 2. Append this to the log
-                logDiv.innerHTML += `
-                    <p class="text-green-400 font-bold mt-2">> ✅ BLAST COMPLETE!</p>
-                    ${statsHtml}
-                `;
-                
-                showModal("Blast Complete!", `Successfully processed ${data.total_rows} contacts. See logs for details.`, false);
-                
-                // 3. Reset form (but keep logs visible)
-                resetForm();
-
-            } else {
-                logDiv.innerHTML += `<p class="text-red-500 font-bold mt-2">> ❌ ERROR: ${data.error}</p>`;
-                showModal("Operation Failed", data.error, true);
-            }
-
-        } catch (error) {
-            logDiv.innerHTML += `<p class="text-red-500 font-bold mt-2">> ❌ NETWORK ERROR</p>`;
-            showModal("Network Error", "Could not connect to backend.", true);
-        } finally {
-            btn.disabled = false;
-            btn.innerHTML = `<span>SEND BLAST</span> <i class="fas fa-paper-plane"></i>`;
-            btn.classList.remove("opacity-50", "cursor-not-allowed");
-        }
-    }
-
-    // Status Check on Load
-    window.onload = async () => {
-        const statusSpan = document.getElementById('system-status');
-        
-        // 1. Check Backend Status
-        try {
-            const response = await fetch(`${BACKEND_URL}/`);
-            if (response.ok) {
-                statusSpan.innerText = "Online";
-                statusSpan.className = "bg-green-100 text-green-800 px-2 py-0.5 rounded text-xs font-bold uppercase tracking-wider";
-            }
-        } catch (error) {
-            statusSpan.innerText = "Offline";
-            statusSpan.className = "bg-red-100 text-red-800 px-2 py-0.5 rounded text-xs font-bold uppercase tracking-wider";
-        }
-        
-        // 2. Load Sheets
-        // REMOVE THE LINE: checkStatus(); <--- CAUSING THE ERROR
-        loadSheetNames(); 
-    };
-    // 2. FUNCTION TO FETCH SHEET NAMES
+    // --- SHEET SELECTION LOGIC ---
     async function loadSheetNames() {
         const container = document.getElementById('sheetListContainer');
         container.innerHTML = `<p class="text-xs text-gray-400 col-span-3"><i class="fas fa-spinner fa-spin"></i> Fetching tables...</p>`;
@@ -348,9 +243,9 @@
             const data = await response.json();
             
             if (data.sheets && data.sheets.length > 0) {
-                container.innerHTML = ""; // Clear loader
+                container.innerHTML = ""; 
                 
-                // Add "Select All" Option
+                // Select All Option
                 const allHtml = `
                     <label class="flex items-center space-x-2 text-sm cursor-pointer hover:bg-gray-50 p-1 rounded">
                         <input type="checkbox" value="ALL" checked onchange="toggleSheetSelection(this)" class="sheet-checkbox form-checkbox h-4 w-4 text-green-600 rounded">
@@ -359,7 +254,7 @@
                 `;
                 container.innerHTML += allHtml;
 
-                // Add Individual Sheets
+                // Individual Sheets
                 data.sheets.forEach(sheetName => {
                     const html = `
                         <label class="flex items-center space-x-2 text-sm cursor-pointer hover:bg-gray-50 p-1 rounded">
@@ -376,23 +271,119 @@
             container.innerHTML = `<p class="text-xs text-red-400 col-span-3">Failed to load sheets.</p>`;
         }
     }
-    // 3. LOGIC: Mutually Exclusive Selection
+
     function toggleSheetSelection(checkbox) {
         const allCheckbox = document.querySelector('.sheet-checkbox[value="ALL"]');
         const otherCheckboxes = document.querySelectorAll('.sheet-checkbox:not([value="ALL"])');
 
         if (checkbox.value === "ALL") {
-            // If "Select All" is checked, uncheck everyone else
             if (checkbox.checked) {
                 otherCheckboxes.forEach(cb => cb.checked = false);
             }
         } else {
-            // If a specific sheet is checked, uncheck "Select All"
-            if (checkbox.checked) {
-                if (allCheckbox) allCheckbox.checked = false;
+            if (checkbox.checked && allCheckbox) {
+                allCheckbox.checked = false;
             }
         }
     }
+
+    // --- MAIN EXECUTION LOGIC ---
+    async function executeBlast() {
+        closeConfirmModal(); 
+
+        const btn = document.getElementById('sendBtn');
+        const logDiv = document.getElementById('outputLog');
+        
+        // Lock UI
+        btn.disabled = true;
+        btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Sending...`;
+        btn.classList.add("opacity-50", "cursor-not-allowed");
+        
+        // Show Log & Connecting Message
+        logDiv.classList.remove("hidden");
+        logDiv.innerHTML = `<p class="text-blue-400">> Connecting to server...</p>`;
+
+        // Grab Inputs
+        const allCheckboxes = document.querySelectorAll('.sheet-checkbox:checked');
+        let selectedTabs = [];
+        allCheckboxes.forEach(cb => selectedTabs.push(cb.value));
+        if (selectedTabs.length === 0) selectedTabs = ["ALL"];
+
+        const imageUrl = document.getElementById('imageUrl').value;
+        const message = document.getElementById('messageBody').value;
+        const password = document.getElementById('adminPassword').value;
+        const useWhatsapp = document.getElementById('checkWhatsapp').checked;
+        const useEmail = document.getElementById('checkEmail').checked;
+
+        try {
+            const response = await fetch(`${BACKEND_URL}/api/send-blast`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    message: message,
+                    password: password,
+                    image_url: imageUrl,
+                    send_whatsapp: useWhatsapp, 
+                    send_email: useEmail,
+                    selected_tabs: selectedTabs 
+                })
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                // --- THIS IS THE MISSING PART THAT SHOWS THE STATS ---
+                const stats = data.stats;
+                const statsHtml = `
+                    <div class="mt-2 pl-2 border-l-2 border-green-500 text-gray-300 text-xs">
+                        <p><strong>Total Processed:</strong> ${data.total_rows}</p>
+                        <hr class="border-gray-600 my-1">
+                        <p>🟢 WA Sent: ${stats.whatsapp_sent} <span class="text-red-400">(Failed: ${stats.whatsapp_fail})</span></p>
+                        <p>🔵 Email Sent: ${stats.email_sent} <span class="text-red-400">(Failed: ${stats.email_fail})</span></p>
+                    </div>
+                `;
+
+                logDiv.innerHTML += `
+                    <p class="text-green-400 font-bold mt-2">> ✅ BLAST COMPLETE!</p>
+                    ${statsHtml}
+                `;
+                
+                showModal("Blast Complete!", `Successfully processed ${data.total_rows} contacts. See logs for details.`, false);
+                
+                // Clear the form fields, but keep the log visible
+                resetForm();
+
+            } else {
+                logDiv.innerHTML += `<p class="text-red-500 font-bold mt-2">> ❌ ERROR: ${data.error}</p>`;
+                showModal("Operation Failed", data.error, true);
+            }
+
+        } catch (error) {
+            logDiv.innerHTML += `<p class="text-red-500 font-bold mt-2">> ❌ NETWORK ERROR</p>`;
+            showModal("Network Error", "Could not connect to backend.", true);
+            console.error(error);
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = `<span>SEND BLAST</span> <i class="fas fa-paper-plane"></i>`;
+            btn.classList.remove("opacity-50", "cursor-not-allowed");
+        }
+    }
+
+    // Status Check on Load
+    window.onload = async () => {
+        const statusSpan = document.getElementById('system-status');
+        try {
+            const response = await fetch(`${BACKEND_URL}/`);
+            if (response.ok) {
+                statusSpan.innerText = "Online";
+                statusSpan.className = "bg-green-100 text-green-800 px-2 py-0.5 rounded text-xs font-bold uppercase tracking-wider";
+            }
+        } catch (error) {
+            statusSpan.innerText = "Offline";
+            statusSpan.className = "bg-red-100 text-red-800 px-2 py-0.5 rounded text-xs font-bold uppercase tracking-wider";
+        }
+        loadSheetNames(); 
+    };
 </script>
 </body>
 </html>
