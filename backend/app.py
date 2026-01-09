@@ -3,9 +3,8 @@ import os
 import json
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-from services import get_google_sheet_contacts, send_whatsapp_template
 from dotenv import load_dotenv
-from services import get_google_sheet_contacts, send_whatsapp_template, get_groq_response, send_whatsapp_text, send_brevo_email
+from services import get_google_sheet_contacts, send_whatsapp_template, get_groq_response, send_whatsapp_text, send_brevo_email, get_sheet_titles
 
 load_dotenv()
 app = Flask(__name__)
@@ -126,6 +125,15 @@ We look forward to working with you. If you have any more questions, just ask!
 def home():
     return jsonify({"status": "Backend is running", "platform": "Render"}), 200
 
+@app.route("/api/get-sheet-names", methods=["GET"])
+def get_sheets():
+    sheet_url = os.getenv("DEFAULT_SHEET_URL")
+    if not sheet_url:
+        return jsonify({"error": "No sheet URL configured"}), 500
+
+    titles = get_sheet_titles(sheet_url)
+    return jsonify({"sheets": titles}), 200
+
 @app.route("/api/send-blast", methods=["POST"])
 def send_blast():
     data = request.json
@@ -138,6 +146,7 @@ def send_blast():
     # NEW: Checkbox States (Default to False if missing)
     send_whatsapp_flag = data.get("send_whatsapp", False)
     send_email_flag = data.get("send_email", False)
+    selected_tabs = data.get("selected_tabs", ["ALL"])
 
     sheet_url = os.getenv("DEFAULT_SHEET_URL")
     
@@ -151,7 +160,7 @@ def send_blast():
         return jsonify({"error": "Please select at least one sending method (WhatsApp or Email)."}), 400
 
     # 2. GET CONTACTS
-    contacts = get_google_sheet_contacts(sheet_url)
+    contacts = get_google_sheet_contacts(sheet_url, selected_tabs)
     if not contacts:
         return jsonify({"error": "Sheet error or empty"}), 500
 

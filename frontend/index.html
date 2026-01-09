@@ -37,6 +37,20 @@
                     </div>
                 </div>
             </div>
+            <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                <div class="flex justify-between items-center mb-2">
+                    <label class="block text-gray-700 font-bold">
+                        <i class="fas fa-table text-green-600 mr-2"></i> Select Tables (Tabs)
+                    </label>
+                    <button onclick="loadSheetNames()" class="text-xs text-blue-600 hover:text-blue-800 underline">
+                        <i class="fas fa-sync"></i> Refresh List
+                    </button>
+                </div>
+
+                <div id="sheetListContainer" class="grid grid-cols-2 md:grid-cols-3 gap-2 max-h-40 overflow-y-auto p-2 bg-white border border-gray-300 rounded">
+                    <p class="text-xs text-gray-400 col-span-3">Loading sheets...</p>
+                </div>
+            </div>
 
             <div>
                 <label class="block text-gray-700 font-bold mb-2">
@@ -226,7 +240,7 @@
 
     // --- MAIN LOGIC ---
     async function executeBlast() {
-        closeConfirmModal(); // Hide the question
+        closeConfirmModal(); 
 
         const btn = document.getElementById('sendBtn');
         const logDiv = document.getElementById('outputLog');
@@ -234,12 +248,16 @@
         // Lock UI
         btn.disabled = true;
         btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Sending...`;
-        btn.classList.add("opacity-50", "cursor-not-allowed");
         
-        logDiv.classList.remove("hidden");
-        logDiv.innerHTML = `<p class="text-blue-400">> Connecting to server...</p>`;
+        // GRAB SELECTED TABS
+        const allCheckboxes = document.querySelectorAll('.sheet-checkbox:checked');
+        let selectedTabs = [];
+        allCheckboxes.forEach(cb => selectedTabs.push(cb.value));
 
-        // Grab values again (safe since we just validated them)
+        // Default to ALL if nothing selected
+        if (selectedTabs.length === 0) selectedTabs = ["ALL"];
+
+        // Grab other values
         const imageUrl = document.getElementById('imageUrl').value;
         const message = document.getElementById('messageBody').value;
         const password = document.getElementById('adminPassword').value;
@@ -255,7 +273,8 @@
                     password: password,
                     image_url: imageUrl,
                     send_whatsapp: useWhatsapp, 
-                    send_email: useEmail      
+                    send_email: useEmail,
+                    selected_tabs: selectedTabs // <--- SEND THIS
                 })
             });
 
@@ -312,7 +331,55 @@
             statusSpan.innerText = "Offline";
             statusSpan.className = "bg-red-100 text-red-800 px-2 py-0.5 rounded text-xs font-bold uppercase tracking-wider";
         }
+        checkStatus(); 
+        loadSheetNames(); // <--- Add this
     };
+    // 2. FUNCTION TO FETCH SHEET NAMES
+    async function loadSheetNames() {
+        const container = document.getElementById('sheetListContainer');
+        container.innerHTML = `<p class="text-xs text-gray-400 col-span-3"><i class="fas fa-spinner fa-spin"></i> Fetching tables...</p>`;
+        
+        try {
+            const response = await fetch(`${BACKEND_URL}/api/get-sheet-names`);
+            const data = await response.json();
+            
+            if (data.sheets && data.sheets.length > 0) {
+                container.innerHTML = ""; // Clear loader
+                
+                // Add "Select All" Option
+                const allHtml = `
+                    <label class="flex items-center space-x-2 text-sm cursor-pointer hover:bg-gray-50 p-1 rounded">
+                        <input type="checkbox" value="ALL" checked onchange="toggleSheetSelection(this)" class="sheet-checkbox form-checkbox h-4 w-4 text-green-600 rounded">
+                        <span class="font-bold">Select All</span>
+                    </label>
+                `;
+                container.innerHTML += allHtml;
+
+                // Add Individual Sheets
+                data.sheets.forEach(sheetName => {
+                    const html = `
+                        <label class="flex items-center space-x-2 text-sm cursor-pointer hover:bg-gray-50 p-1 rounded">
+                            <input type="checkbox" value="${sheetName}" class="sheet-checkbox form-checkbox h-4 w-4 text-green-600 rounded">
+                            <span class="truncate" title="${sheetName}">${sheetName}</span>
+                        </label>
+                    `;
+                    container.innerHTML += html;
+                });
+            } else {
+                container.innerHTML = `<p class="text-xs text-red-400 col-span-3">No sheets found.</p>`;
+            }
+        } catch (e) {
+            container.innerHTML = `<p class="text-xs text-red-400 col-span-3">Failed to load sheets.</p>`;
+        }
+    }
+    function toggleSheetSelection(checkbox) {
+        const allCheckboxes = document.querySelectorAll('.sheet-checkbox');
+        if (checkbox.value === "ALL" && checkbox.checked) {
+            allCheckboxes.forEach(cb => {
+                if (cb.value !== "ALL") cb.checked = false;
+            });
+        }
+    }
 </script>
 </body>
 </html>

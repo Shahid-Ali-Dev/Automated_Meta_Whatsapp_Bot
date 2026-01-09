@@ -20,10 +20,11 @@ GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
 groq_client = Groq(api_key=GROQ_API_KEY)
 
-def get_google_sheet_contacts(sheet_url):
+def get_google_sheet_contacts(sheet_url, target_tabs=[]):
     """
-    Connects to Google Sheets and returns a consolidated list of contacts 
-    from ALL tabs, handling mixed column names (Phone, Mobile, Contact, etc.).
+    Extracts contacts. 
+    If target_tabs is empty or contains "ALL", it gets everything.
+    Otherwise, it only processes tabs named in target_tabs.
     """
     try:
         # 1. AUTHENTICATION
@@ -33,30 +34,33 @@ def get_google_sheet_contacts(sheet_url):
                 with open("credentials.json", "r") as f:
                     json_creds = f.read()
             else:
-                print("❌ No credentials found!")
                 return None
-
+        
         creds_dict = json.loads(json_creds)
         scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
         creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
         client = gspread.authorize(creds)
         
-        # 2. OPEN FILE
         spreadsheet = client.open_by_url(sheet_url)
         all_contacts = []
         seen_contacts = set()
         
         worksheets = spreadsheet.worksheets()
-        print(f"📊 Found {len(worksheets)} sheets. combining data...")
+        print(f"📊 Found {len(worksheets)} sheets. Filtering for: {target_tabs}")
 
-        # 3. LOOP TABS
         for sheet in worksheets:
-            try:
-                # Get raw records
-                records = sheet.get_all_records()
-                
-                if not records:
+            # --- NEW FILTERING LOGIC ---
+            # If target_tabs has data AND "ALL" is not in it...
+            if target_tabs and "ALL" not in target_tabs:
+                # If this sheet's name is NOT in the target list, skip it.
+                if sheet.title not in target_tabs:
+                    print(f"⏭️ Skipping tab '{sheet.title}' (Not selected)")
                     continue
+            # ---------------------------
+
+            try:
+                records = sheet.get_all_records()
+                if not records: continue
 
                 # 4. SMART COLUMN MAPPING
                 # We need to find which key corresponds to Phone, Email, Name in THIS specific tab
@@ -490,6 +494,32 @@ def get_groq_response(user_text):
         print(f"Groq Error: {e}")
         return "I'm having trouble connecting right now. Please call us directly at +91 9752000546."
 
+def get_sheet_titles(sheet_url):
+    """
+    Returns a list of all Tab (Worksheet) names in the Google Sheet.
+    """
+    try:
+        json_creds = os.getenv("GOOGLE_CREDENTIALS")
+        if not json_creds:
+            # Fallback to local file
+            if os.path.exists("credentials.json"):
+                with open("credentials.json", "r") as f:
+                    json_creds = f.read()
+            else:
+                return []
+
+        creds_dict = json.loads(json_creds)
+        scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+        creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
+        client = gspread.authorize(creds)
+        
+        spreadsheet = client.open_by_url(sheet_url)
+        return [sheet.title for sheet in spreadsheet.worksheets()]
+        
+    except Exception as e:
+        print(f"Error fetching titles: {e}")
+        return []
+    
 def send_whatsapp_text(to_number, text_body):
     """
     Sends a standard text reply (Allowed only within 24h of user message).
