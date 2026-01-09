@@ -361,7 +361,6 @@
 
                 // Add Individual Sheets
                 data.sheets.forEach(sheetName => {
-                    // FIX IS HERE: Added onchange="toggleSheetSelection(this)"
                     const html = `
                         <label class="flex items-center space-x-2 text-sm cursor-pointer hover:bg-gray-50 p-1 rounded">
                             <input type="checkbox" value="${sheetName}" onchange="toggleSheetSelection(this)" class="sheet-checkbox form-checkbox h-4 w-4 text-green-600 rounded">

@@ -85,29 +85,40 @@ Monday - Saturday: 10:00 AM - 7:00 PM
 
 # 4. SERVICES (Standalone)
 SERVICES_KEYWORDS = [
-    "service", "services", "work", "what do you do", "offer", "offering", "services?", "what do you do?"
+    "service", "services", "work", "what do you do", "offer", "offering", "services?", 
+    "view services", "our services", "check services" # <--- Added these
 ]
 
 STATIC_SERVICES = """🚀 *Our Premium Services*
 
-Here is how we help brands scale:
+We provide end-to-end digital solutions to help you scale. Here are the details:
 
-📈 *Marketing & Branding*
-Logo Design, Brand Identity, & Strategy.
+1️⃣ *Marketing & Branding*
+• Logo Design & Brand Identity
+• Visual Guidelines & Strategy
+• Rebranding Campaigns
 
-🎯 *Performance Marketing*
-Meta Ads, Google Ads, & ROAS Optimization.
+2️⃣ *Performance Marketing*
+• Meta Ads (Facebook/Instagram) with high ROAS
+• Google Ads (Search/Display/Youtube)
+• Conversion Rate Optimization (CRO)
 
-🤖 *AI & Automation*
-Custom Chatbots, Workflow Automation & CRM Setup.
+3️⃣ *AI & Automation*
+• Custom WhatsApp Chatbots (Like this one!)
+• CRM Integration (HubSpot, Zoho)
+• Automated Lead Nurturing Workflows
 
-🛍️ *Retail & E-commerce*
-End-to-end management for Amazon, Flipkart & Shopify.
+4️⃣ *Retail & E-commerce*
+• Amazon/Flipkart Store Management
+• Shopify Website Development
+• Inventory & Listing Optimization
 
-🎨 *3D Animation & Modeling*
-High-end visuals to make your product stand out.
+5️⃣ *3D Animation & Modeling*
+• High-end 3D Product Reveals
+• Social Media & Ads (FOOH)
+• Architectural Visualization
 
-*Which one interests you?* 👇"""
+*Which service would you like to discuss?* 👇"""
 
 # 5. THANKS / CLOSING
 THANKS_KEYWORDS = [
