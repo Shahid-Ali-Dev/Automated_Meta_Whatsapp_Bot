@@ -288,6 +288,7 @@
     }
 
     // --- MAIN EXECUTION LOGIC ---
+    // --- MAIN EXECUTION LOGIC ---
     async function executeBlast() {
         closeConfirmModal(); 
 
@@ -301,22 +302,21 @@
         logDiv.innerHTML = `<p class="text-blue-400">> Connecting to server...</p>`;
 
         // 1. START THE LIVE LOG POLLER (Tick every 2 seconds)
+        // This watches for those delayed "Block" errors from WhatsApp
         const logInterval = setInterval(async () => {
             try {
                 const res = await fetch(`${BACKEND_URL}/api/get-live-logs`);
                 const data = await res.json();
                 if (data.logs && data.logs.length > 0) {
                     data.logs.forEach(log => {
-                        // Append red error text to the log window
-                        logDiv.innerHTML += `<p class="text-red-400 font-bold mt-1">> ${log}</p>`;
-                        // Auto-scroll to bottom
+                        logDiv.innerHTML += `<p class="text-red-400 font-bold mt-1 text-xs">> ${log}</p>`;
                         logDiv.scrollTop = logDiv.scrollHeight;
                     });
                 }
             } catch (e) { console.log("Polling error", e); }
         }, 2000);
 
-        // ... (Grab your inputs as usual) ...
+        // Gather Inputs
         const allCheckboxes = document.querySelectorAll('.sheet-checkbox:checked');
         let selectedTabs = [];
         allCheckboxes.forEach(cb => selectedTabs.push(cb.value));
@@ -343,16 +343,20 @@
 
             if (response.ok) {
                 const stats = data.stats;
+                
+                // --- FIX: ADDED EMAIL STATS BACK HERE ---
                 logDiv.innerHTML += `
                     <p class="text-green-400 font-bold mt-2">> ✅ REQUEST PROCESSED</p>
                     <div class="mt-2 pl-2 border-l-2 border-green-500 text-gray-300 text-xs">
-                        <p>Total Queued: ${data.total_rows}</p>
-                        <p>🟢 WA Submitted: ${stats.whatsapp_sent}</p>
-                        <p class="text-xs text-gray-500 italic">...Waiting for delivery reports...</p>
+                        <p><strong>Total Queued:</strong> ${data.total_rows}</p>
+                        <hr class="border-gray-600 my-1">
+                        <p>🟢 WA Submitted: ${stats.whatsapp_sent} <span class="text-red-400">(Immediate Fail: ${stats.whatsapp_fail})</span></p>
+                        <p>🔵 Email Sent: ${stats.email_sent} <span class="text-red-400">(Failed: ${stats.email_fail})</span></p>
+                        <p class="text-xs text-gray-500 italic mt-1">...Listening for async delivery errors...</p>
                     </div>
                 `;
                 
-                // Keep the poller running for 10 more seconds to catch delayed errors
+                // Keep the poller running for 10 more seconds to catch delayed blocks
                 setTimeout(() => {
                     clearInterval(logInterval);
                     logDiv.innerHTML += `<p class="text-gray-500 text-xs mt-2">> Log connection closed.</p>`;
@@ -366,13 +370,14 @@
 
         } catch (error) {
             logDiv.innerHTML += `<p class="text-red-500 font-bold mt-2">> ❌ NETWORK ERROR</p>`;
+            console.error(error);
             clearInterval(logInterval);
         } finally {
             btn.disabled = false;
             btn.innerHTML = `<span>SEND BLAST</span> <i class="fas fa-paper-plane"></i>`;
         }
     }
-
+    
     // Status Check on Load
     window.onload = async () => {
         const statusSpan = document.getElementById('system-status');
