@@ -205,14 +205,17 @@ def send_whatsapp_template(to_number, user_name, custom_message, image_url=None)
 def send_brevo_email(to_email, subject, body_text, user_name="Valued Customer"):
     """
     Sends a Professional HTML email via Brevo.
-    - Inbox Subject: "Update for {Name}"
-    - Template Header: "Greetings {Name}! 👋"
     """
     api_key = os.getenv("BREVO_API_KEY")
     sender_email = os.getenv("SENDER_EMAIL", "services@shoutotb.com")
     
     if not api_key:
         print("❌ Error: BREVO_API_KEY not found.")
+        return False
+
+    # Validation Guard
+    if not to_email or "@" not in to_email:
+        print(f"❌ Brevo Skip: Invalid email address '{to_email}'")
         return False
 
     url = "https://api.brevo.com/v3/smtp/email"
@@ -435,12 +438,15 @@ def send_brevo_email(to_email, subject, body_text, user_name="Valued Customer"):
     }
 
     try:
-        response = requests.post(url, json=payload, headers=headers)
+        response = requests.post(url, json=payload, headers=headers, timeout=10) # Added timeout
+        
         if response.status_code == 201:
             return True
         else:
-            print(f"📧 Brevo Error: {response.text}")
+            # Print the exact error from Brevo
+            print(f"📧 Brevo Error for {to_email}: {response.text}")
             return False
+            
     except Exception as e:
         print(f"📧 Connection Error: {e}")
         return False

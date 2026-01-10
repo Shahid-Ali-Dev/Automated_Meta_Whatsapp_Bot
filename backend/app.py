@@ -217,24 +217,43 @@ def send_blast():
 
         # --- OPTION 2: EMAIL ---
         if send_email_flag:
-            email = str(row.get('Email ids', '')).strip()
+            # 1. Get raw data
+            raw_email = str(row.get('Email ids', ''))
             
-            # Handle multiple emails
-            if ',' in email: email = email.split(',')[0].strip()
-            if ' ' in email: email = email.split(' ')[0].strip()
+            # 2. Aggressive Cleaning
+            # Remove invisible characters (Newlines, Tabs, Non-breaking spaces)
+            email = raw_email.replace('\r', '').replace('\n', '').replace('\t', '').replace('\xa0', '').strip()
+            
+            # 3. Handle multiple emails in one cell (e.g., "test@gmail.com, boss@gmail.com")
+            if ',' in email: 
+                email = email.split(',')[0].strip()
+            elif '/' in email: # Handle "email1 / email2"
+                email = email.split('/')[0].strip()
+            
+            # 4. Handle "email@gmail.com (Personal)" format
+            if ' ' in email: 
+                email = email.split(' ')[0].strip()
 
-            if email and '@' in email:
-                # --- NEW LOGIC: Check if we already emailed this address ---
+            # 5. Final Validation before sending
+            if email and '@' in email and '.' in email:
+                
+                # Check duplicates
                 if email in sent_emails:
                     print(f"⏭️ Email Skip: {email} (Already sent)")
                 else:
-                    # It's a new email! Send it.
+                    # Send
                     subject = f"Update for {clean_name}"
                     if send_brevo_email(email, subject, message_body, clean_name):
                         stats["email_sent"] += 1
                         sent_emails.add(email) # Mark as sent
+                        print(f"✅ Email Sent: {email}")
                     else:
                         stats["email_fail"] += 1
+                        print(f"❌ Email Failed: {email}")
+            else:
+                # Print why it was skipped (helps debugging)
+                if raw_email:
+                    print(f"⚠️ Invalid Email Format: '{raw_email}' -> Cleaned: '{email}'")
     
     return jsonify({
         "status": "completed",
