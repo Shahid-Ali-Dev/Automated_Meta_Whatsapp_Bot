@@ -264,7 +264,7 @@ def send_blast():
 # Webhook for Replies (We will build this out later)
 @app.route("/webhook", methods=["GET", "POST"])
 def webhook():
-    # 1. VERIFICATION
+    # 1. VERIFICATION (Keep as is)
     if request.method == "GET":
         mode = request.args.get("hub.mode")
         token = request.args.get("hub.verify_token")
@@ -277,64 +277,60 @@ def webhook():
     if request.method == "POST":
         data = request.get_json()
         
+        # --- DEBUG PRINT: Show exactly what Meta sent ---
+        print("📨 WEBHOOK RAW DATA:", json.dumps(data, indent=2)) 
+
         try:
             if data.get("entry") and data["entry"][0].get("changes"):
                 change = data["entry"][0]["changes"][0]["value"]
                 
-                # --- STATUS UPDATES (Sent/Delivered/Failed) ---
+                # --- CASE A: STATUS UPDATE (The error is hiding here) ---
                 if "statuses" in change:
-                    # ... (Keep your existing status error logging logic here) ...
-                    pass 
+                    status_data = change["statuses"][0]
+                    phone = status_data.get("recipient_id")
+                    status = status_data.get("status")
+                    
+                    # PRINT THE STATUS LOUD AND CLEAR
+                    print(f"📣 STATUS UPDATE for {phone}: {status.upper()}")
+                    
+                    if status == "failed":
+                        errors = status_data.get("errors", [])
+                        print(f"❌ FAILURE DETAILS: {errors}")
 
-                # --- INCOMING MESSAGES ---
+                # --- CASE B: INCOMING MESSAGE (Replies) ---
                 elif "messages" in change:
                     message_data = change["messages"][0]
                     phone_no = message_data["from"]
+                    
+                    # Handle Button Clicks & Text
                     message_type = message_data["type"]
                     user_text = ""
 
-                    # ------------------------------------------------------
-                    # 🔍 FIX: Handle BOTH "text" AND "button" types
-                    # ------------------------------------------------------
                     if message_type == "text":
                         user_text = message_data["text"]["body"]
-                    
                     elif message_type == "button":
-                        # This handles Quick Reply button clicks
                         user_text = message_data["button"]["text"]
-                        print(f"🔘 Button Click Detected: {user_text}")
-
+                        print(f"🔘 Button Click: {user_text}")
                     elif message_type == "interactive":
-                        # This handles List Menu clicks (future proofing)
-                        if message_data["interactive"]["type"] == "button_reply":
+                         if message_data["interactive"]["type"] == "button_reply":
                             user_text = message_data["interactive"]["button_reply"]["title"]
-                    # ------------------------------------------------------
 
-                    # Only proceed if we found some text
                     if user_text:
-                        # --- 1. CLEAN INPUT ---
                         clean_text = user_text.lower().strip()
-
-                        # --- 2. CHECK STATIC RESPONSES ---
+                        
+                        # --- STATIC RESPONSES ---
                         if clean_text in GREETING_KEYWORDS:
                              send_whatsapp_text(phone_no, STATIC_GREETING)
-                        
                         elif any(word in clean_text for word in PRICING_KEYWORDS):
                              send_whatsapp_text(phone_no, STATIC_PRICING)
-                        
                         elif any(word in clean_text for word in LOCATION_KEYWORDS):
                              send_whatsapp_text(phone_no, STATIC_LOCATION)
-                        
-                        # This will now catch "View Services" button clicks!
                         elif any(word in clean_text for word in SERVICES_KEYWORDS):
                              print(f"🚀 Services query from {phone_no}")
                              send_whatsapp_text(phone_no, STATIC_SERVICES)
-                        
                         elif any(word in clean_text for word in THANKS_KEYWORDS):
                              send_whatsapp_text(phone_no, STATIC_THANKS)
-                        
                         else:
-                             # AI Fallback
                              ai_reply = get_groq_response(user_text)
                              send_whatsapp_text(phone_no, ai_reply)
 
