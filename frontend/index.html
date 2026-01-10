@@ -294,78 +294,82 @@
         const btn = document.getElementById('sendBtn');
         const logDiv = document.getElementById('outputLog');
         
-        // Lock UI
+        // Reset UI
         btn.disabled = true;
         btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Sending...`;
-        btn.classList.add("opacity-50", "cursor-not-allowed");
-        
-        // Show Log & Connecting Message
         logDiv.classList.remove("hidden");
         logDiv.innerHTML = `<p class="text-blue-400">> Connecting to server...</p>`;
 
-        // Grab Inputs
+        // 1. START THE LIVE LOG POLLER (Tick every 2 seconds)
+        const logInterval = setInterval(async () => {
+            try {
+                const res = await fetch(`${BACKEND_URL}/api/get-live-logs`);
+                const data = await res.json();
+                if (data.logs && data.logs.length > 0) {
+                    data.logs.forEach(log => {
+                        // Append red error text to the log window
+                        logDiv.innerHTML += `<p class="text-red-400 font-bold mt-1">> ${log}</p>`;
+                        // Auto-scroll to bottom
+                        logDiv.scrollTop = logDiv.scrollHeight;
+                    });
+                }
+            } catch (e) { console.log("Polling error", e); }
+        }, 2000);
+
+        // ... (Grab your inputs as usual) ...
         const allCheckboxes = document.querySelectorAll('.sheet-checkbox:checked');
         let selectedTabs = [];
         allCheckboxes.forEach(cb => selectedTabs.push(cb.value));
         if (selectedTabs.length === 0) selectedTabs = ["ALL"];
 
-        const imageUrl = document.getElementById('imageUrl').value;
-        const message = document.getElementById('messageBody').value;
-        const password = document.getElementById('adminPassword').value;
-        const useWhatsapp = document.getElementById('checkWhatsapp').checked;
-        const useEmail = document.getElementById('checkEmail').checked;
+        const inputs = {
+            message: document.getElementById('messageBody').value,
+            password: document.getElementById('adminPassword').value,
+            image_url: document.getElementById('imageUrl').value,
+            send_whatsapp: document.getElementById('checkWhatsapp').checked,
+            send_email: document.getElementById('checkEmail').checked,
+            selected_tabs: selectedTabs
+        };
 
         try {
+            // 2. SEND THE BLAST COMMAND
             const response = await fetch(`${BACKEND_URL}/api/send-blast`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    message: message,
-                    password: password,
-                    image_url: imageUrl,
-                    send_whatsapp: useWhatsapp, 
-                    send_email: useEmail,
-                    selected_tabs: selectedTabs 
-                })
+                body: JSON.stringify(inputs)
             });
 
             const data = await response.json();
 
             if (response.ok) {
-                // --- THIS IS THE MISSING PART THAT SHOWS THE STATS ---
                 const stats = data.stats;
-                const statsHtml = `
+                logDiv.innerHTML += `
+                    <p class="text-green-400 font-bold mt-2">> ✅ REQUEST PROCESSED</p>
                     <div class="mt-2 pl-2 border-l-2 border-green-500 text-gray-300 text-xs">
-                        <p><strong>Total Processed:</strong> ${data.total_rows}</p>
-                        <hr class="border-gray-600 my-1">
-                        <p>🟢 WA Sent: ${stats.whatsapp_sent} <span class="text-red-400">(Failed: ${stats.whatsapp_fail})</span></p>
-                        <p>🔵 Email Sent: ${stats.email_sent} <span class="text-red-400">(Failed: ${stats.email_fail})</span></p>
+                        <p>Total Queued: ${data.total_rows}</p>
+                        <p>🟢 WA Submitted: ${stats.whatsapp_sent}</p>
+                        <p class="text-xs text-gray-500 italic">...Waiting for delivery reports...</p>
                     </div>
                 `;
+                
+                // Keep the poller running for 10 more seconds to catch delayed errors
+                setTimeout(() => {
+                    clearInterval(logInterval);
+                    logDiv.innerHTML += `<p class="text-gray-500 text-xs mt-2">> Log connection closed.</p>`;
+                }, 10000);
 
-                logDiv.innerHTML += `
-                    <p class="text-green-400 font-bold mt-2">> ✅ BLAST COMPLETE!</p>
-                    ${statsHtml}
-                `;
-                
-                showModal("Blast Complete!", `Successfully processed ${data.total_rows} contacts. See logs for details.`, false);
-                
-                // Clear the form fields, but keep the log visible
                 resetForm();
-
             } else {
                 logDiv.innerHTML += `<p class="text-red-500 font-bold mt-2">> ❌ ERROR: ${data.error}</p>`;
-                showModal("Operation Failed", data.error, true);
+                clearInterval(logInterval);
             }
 
         } catch (error) {
             logDiv.innerHTML += `<p class="text-red-500 font-bold mt-2">> ❌ NETWORK ERROR</p>`;
-            showModal("Network Error", "Could not connect to backend.", true);
-            console.error(error);
+            clearInterval(logInterval);
         } finally {
             btn.disabled = false;
             btn.innerHTML = `<span>SEND BLAST</span> <i class="fas fa-paper-plane"></i>`;
-            btn.classList.remove("opacity-50", "cursor-not-allowed");
         }
     }
 

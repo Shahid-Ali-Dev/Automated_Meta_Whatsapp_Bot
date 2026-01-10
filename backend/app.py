@@ -13,7 +13,7 @@ CORS(app, resources={r"/*": {"origins": "*"}})
 
 # Security: The password required to fire the blast
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "default_secret") 
-
+global_logs = []
 # --- STATIC RESPONSE CONFIGURATION ---
 
 # 1. GREETINGS
@@ -135,6 +135,14 @@ We look forward to working with you. If you have any more questions, just ask!
 @app.route("/")
 def home():
     return jsonify({"status": "Backend is running", "platform": "Render"}), 200
+
+@app.route("/api/get-live-logs", methods=["GET"])
+def get_live_logs():
+    global global_logs
+    # Return the logs and CLEAR them (so we don't print duplicates)
+    logs_to_return = list(global_logs)
+    global_logs.clear()
+    return jsonify({"logs": logs_to_return}), 200
 
 @app.route("/api/get-sheet-names", methods=["GET"])
 def get_sheets():
@@ -284,18 +292,24 @@ def webhook():
             if data.get("entry") and data["entry"][0].get("changes"):
                 change = data["entry"][0]["changes"][0]["value"]
                 
-                # --- CASE A: STATUS UPDATE (The error is hiding here) ---
-                if "statuses" in change:
-                    status_data = change["statuses"][0]
-                    phone = status_data.get("recipient_id")
-                    status = status_data.get("status")
-                    
-                    # PRINT THE STATUS LOUD AND CLEAR
-                    print(f"📣 STATUS UPDATE for {phone}: {status.upper()}")
-                    
-                    if status == "failed":
-                        errors = status_data.get("errors", [])
-                        print(f"❌ FAILURE DETAILS: {errors}")
+            # --- CASE A: STATUS UPDATE ---
+            if "statuses" in change:
+                status_data = change["statuses"][0]
+                phone = status_data.get("recipient_id")
+                status = status_data.get("status")
+
+                if status == "failed":
+                    errors = status_data.get("errors", [])
+                    error_msg = errors[0].get('message') if errors else "Unknown Error"
+                    error_code = errors[0].get('code') if errors else "000"
+
+                    # FORMAT THE LOG MESSAGE
+                    log_entry = f"🚫 FAILED (Async): {phone} | Error {error_code}: {error_msg}"
+
+                    # SAVE TO GLOBAL LIST
+                    global_logs.append(log_entry)
+
+                    print(f"❌ LOG SAVED: {log_entry}")
 
                 # --- CASE B: INCOMING MESSAGE (Replies) ---
                 elif "messages" in change:
