@@ -269,10 +269,10 @@ def send_blast():
         "stats": stats
     }), 200
 
-# Webhook for Replies (We will build this out later)
+# Webhook for Replies 
 @app.route("/webhook", methods=["GET", "POST"])
 def webhook():
-    # 1. VERIFICATION (Keep as is)
+    # 1. VERIFICATION
     if request.method == "GET":
         mode = request.args.get("hub.mode")
         token = request.args.get("hub.verify_token")
@@ -285,66 +285,72 @@ def webhook():
     if request.method == "POST":
         data = request.get_json()
         
-        # --- DEBUG PRINT: Show exactly what Meta sent ---
+        # Debug Print
         print("📨 WEBHOOK RAW DATA:", json.dumps(data, indent=2)) 
 
         try:
             if data.get("entry") and data["entry"][0].get("changes"):
                 change = data["entry"][0]["changes"][0]["value"]
                 
-            # --- CASE A: STATUS UPDATE ---
-            if "statuses" in change:
-                status_data = change["statuses"][0]
-                phone = status_data.get("recipient_id")
-                status = status_data.get("status")
+                # ---------------------------------------------------------
+                # CASE A: STATUS UPDATE (Sent/Delivered/Read/Failed)
+                # ---------------------------------------------------------
+                if "statuses" in change:
+                    status_data = change["statuses"][0]
+                    phone = status_data.get("recipient_id")
+                    status = status_data.get("status")
 
-                if status == "failed":
-                    errors = status_data.get("errors", [])
-                    error_msg = errors[0].get('message') if errors else "Unknown Error"
-                    error_code = errors[0].get('code') if errors else "000"
+                    if status == "failed":
+                        errors = status_data.get("errors", [])
+                        error_msg = errors[0].get('message') if errors else "Unknown Error"
+                        error_code = errors[0].get('code') if errors else "000"
+                        
+                        # Save Log
+                        log_entry = f"🚫 FAILED (Async): {phone} | Error {error_code}: {error_msg}"
+                        global_logs.append(log_entry)
+                        print(f"❌ LOG SAVED: {log_entry}")
 
-                    # FORMAT THE LOG MESSAGE
-                    log_entry = f"🚫 FAILED (Async): {phone} | Error {error_code}: {error_msg}"
-
-                    # SAVE TO GLOBAL LIST
-                    global_logs.append(log_entry)
-
-                    print(f"❌ LOG SAVED: {log_entry}")
-
-                # --- CASE B: INCOMING MESSAGE (Replies) ---
+                # ---------------------------------------------------------
+                # CASE B: INCOMING MESSAGE (Replies/Buttons)
+                # ---------------------------------------------------------
+                # FIX: This 'elif' is now aligned WITH the 'if', not inside it.
                 elif "messages" in change:
                     message_data = change["messages"][0]
                     phone_no = message_data["from"]
-                    
-                    # Handle Button Clicks & Text
                     message_type = message_data["type"]
                     user_text = ""
 
+                    # 1. Extract Text based on Type
                     if message_type == "text":
                         user_text = message_data["text"]["body"]
                     elif message_type == "button":
                         user_text = message_data["button"]["text"]
-                        print(f"🔘 Button Click: {user_text}")
+                        print(f"🔘 Button Click Detected: {user_text}")
                     elif message_type == "interactive":
                          if message_data["interactive"]["type"] == "button_reply":
                             user_text = message_data["interactive"]["button_reply"]["title"]
 
+                    # 2. Process the Text
                     if user_text:
                         clean_text = user_text.lower().strip()
                         
-                        # --- STATIC RESPONSES ---
+                        # Static Responses
                         if clean_text in GREETING_KEYWORDS:
                              send_whatsapp_text(phone_no, STATIC_GREETING)
                         elif any(word in clean_text for word in PRICING_KEYWORDS):
                              send_whatsapp_text(phone_no, STATIC_PRICING)
                         elif any(word in clean_text for word in LOCATION_KEYWORDS):
                              send_whatsapp_text(phone_no, STATIC_LOCATION)
+                        
+                        # This catches "View Services" button!
                         elif any(word in clean_text for word in SERVICES_KEYWORDS):
                              print(f"🚀 Services query from {phone_no}")
                              send_whatsapp_text(phone_no, STATIC_SERVICES)
+                        
                         elif any(word in clean_text for word in THANKS_KEYWORDS):
                              send_whatsapp_text(phone_no, STATIC_THANKS)
                         else:
+                             # AI Fallback
                              ai_reply = get_groq_response(user_text)
                              send_whatsapp_text(phone_no, ai_reply)
 
